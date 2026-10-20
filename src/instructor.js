@@ -7,7 +7,22 @@
   let S = null, connected = false, lastSeen = 0, selId = null;
   const ARC = 58, MAXR = 640;
 
+  Link.onCode(c => { $('sesscode').textContent = c; });
   Link.open('console');
+  function askCode() {
+    $('join').classList.add('on'); $('joincode').value = ''; $('joincode').focus();
+  }
+  $('joinbox').onsubmit = e => {
+    e.preventDefault();
+    const c = $('joincode').value.trim();
+    if (!/^\d{4}$/.test(c)) { $('joincode').focus(); return; }
+    $('join').classList.remove('on');
+    connected = false; S = null;
+    history.replaceState(null, '', 'instructor.html?code=' + c);
+    Link.join(c);
+  };
+  $('sessbox').onclick = askCode;
+  if (!Link.code()) askCode();
 
   /* ---------- incoming ---------------------------------------------------- */
   Link.on('state', d => {
@@ -78,7 +93,7 @@
   }
   setInterval(paintOverlay, 60);          // the pulse needs its own beat
 
-  $('popTrainee').onclick = () => window.open('index.html', 'morchaTrainee',
+  $('popTrainee').onclick = () => window.open('index.html' + (Link.code() ? '?code=' + Link.code() : ''), 'morchaTrainee',
     'width=1440,height=810,menubar=no,toolbar=no,location=no');
   Link.on('claim', c => {
     logLine('CLAIM', 'Trainee reports a contact at ' + clk(c.t) +
@@ -92,8 +107,11 @@
   setInterval(() => {
     const live = connected && Date.now() - lastSeen < 3000;
     const hidden = live && S && S.hidden;
-    $('offline').textContent = !live ? 'NOT CONNECTED'
-      : hidden ? 'TRAINEE SCREEN HIDDEN' : 'LINKED';
+    const md = Link.mode();
+    $('offline').textContent = !Link.code() ? 'NO SESSION'
+      : !live ? (md === 'connecting' ? 'CONNECTING…' : 'NOT CONNECTED')
+      : hidden ? 'TRAINEE SCREEN HIDDEN'
+      : md === 'network' ? 'LINKED · OTHER COMPUTER' : 'LINKED · THIS COMPUTER';
     $('offline').style.color = !live ? 'var(--red)' : hidden ? 'var(--amber)' : 'var(--grn)';
   }, 500);
 

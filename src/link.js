@@ -1,9 +1,14 @@
 /* MORCHA :: LINK — the bus between the trainee screen and the instructor console.
 
-   Two browser windows on ONE machine: the instructor's laptop screen carries the
-   console, the HDMI/projector output carries the trainee's screen. That is the
-   ordinary classroom setup and it needs no network, no server and no second
-   computer — BroadcastChannel talks between windows of the same origin, offline.
+   Every trainee screen shows a 4-digit SESSION CODE. The instructor opens the
+   console, types that code, and the console joins exactly that session.
+
+   Two ways the code connects, tried in this order:
+   1. Same computer (laptop screen + projector): BroadcastChannel between two
+      windows. Offline, no server.
+   2. Different computer: WebRTC peer-to-peer (PeerJS). The code finds the
+      trainee screen over the internet, then the picture and the controls go
+      direct between the two machines.
 
    The trainee's window is deliberately DEAF to everything except one key. Every
    other control lives on the console, because in this exercise the trainee does
@@ -11,33 +16,140 @@
 
 const Link = (function () {
 
-  const NAME = 'morcha-link';
-  let ch = null, role = null;
-  const handlers = {};
+  const PREFIX = 'morcha-nv-';
+  let role = null, code = null, ch = null, peer = null;
+  const conns = new Set();          // sim: every console joined to this session
+  let conn = null;                  // console: our line to the trainee screen
+  let mode = 'none';                // 'local' | 'network' | 'connecting' | 'none'
+  let localHeard = false;
+  const handlers = {}, codeFns = [];
 
-  function open(asRole) {
-    role = asRole;
+  function dispatch(m) {
+    if (!m || m.to !== role) return;           // ignore our own echoes
+    if (role === 'console' && m.code && m.code !== code) return;
+    const h = handlers[m.kind];
+    if (h) h(m.data);
+  }
+
+  function newCode() { return String(1000 + Math.floor(Math.random() * 9000)); }
+  function urlCode() {
+    const c = new URLSearchParams(location.search).get('code');
+    return c && /^\d{4}$/.test(c) ? c : null;
+  }
+  function setCode(c) { code = c; codeFns.forEach(f => { try { f(c); } catch (e) {} }); }
+
+  /* ---- 1. same computer ---------------------------------------------------- */
+  function openLocal() {
     try {
-      ch = new BroadcastChannel(NAME);
+      if (ch) ch.close();
+      ch = new BroadcastChannel('morcha-link-' + code);
       ch.onmessage = e => {
-        const m = e.data;
-        if (!m || m.to !== role) return;         // ignore our own echoes
-        const h = handlers[m.kind];
-        if (h) h(m.data);
+        if (role === 'console' && !localHeard) { localHeard = true; mode = 'local'; dropNetwork(); }
+        if (role === 'console' && conn) return;  // network already carrying it
+        dispatch(e.data);
       };
-    } catch (err) {
-      console.warn('[link] BroadcastChannel unavailable:', err && err.message);
-    }
-    return !!ch;
+    } catch (err) { console.warn('[link] BroadcastChannel unavailable:', err && err.message); }
+  }
+
+  /* ---- 2. different computer ----------------------------------------------- */
+  function hasPeer() { return typeof window.Peer === 'function'; }
+
+  function hostNetwork() {                       // trainee screen
+    if (!hasPeer()) return;
+    try { if (peer) peer.destroy(); } catch (e) {}
+    peer = new window.Peer(PREFIX + code, { debug: 0 });
+    peer.on('connection', c => {
+      c.on('open', () => conns.add(c));
+      c.on('data', dispatch);
+      c.on('close', () => conns.delete(c));
+      c.on('error', () => conns.delete(c));
+    });
+    peer.on('error', err => {
+      if (err && err.type === 'unavailable-id') {  // someone else has this code
+        setCode(newCode()); openLocal(); hostNetwork();
+      }
+    });
+    peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
+  }
+
+  let retry = null;
+  function joinNetwork() {                       // console
+    if (!hasPeer() || localHeard || conn) return;
+    mode = 'connecting';
+    const go = () => {
+      if (localHeard || conn) return;
+      const c = peer.connect(PREFIX + code, { reliable: true, serialization: 'binary' });
+      c.on('open', () => {
+        if (localHeard) { c.close(); return; }
+        conn = c; mode = 'network';
+        send('sim', 'hello', { role });
+      });
+      c.on('data', dispatch);
+      c.on('close', () => { if (conn === c) { conn = null; mode = 'connecting'; } });
+    };
+    if (!peer) {
+      peer = new window.Peer({ debug: 0 });
+      peer.on('open', go);
+      peer.on('error', () => {});
+      peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
+    } else if (peer.open) go();
+    clearInterval(retry);
+    retry = setInterval(() => {
+      if (localHeard) { clearInterval(retry); return; }
+      if (!conn && peer && peer.open) go();
+    }, 4000);
+  }
+  function dropNetwork() {
+    clearInterval(retry);
+    try { if (conn) conn.close(); } catch (e) {}
+    conn = null;
   }
 
   function send(to, kind, data) {
-    if (!ch) return;
-    try { ch.postMessage({ to, kind, data }); } catch (e) { /* payload too large */ }
+    const m = { to, kind, data, code };
+    if (ch) { try { ch.postMessage(m); } catch (e) { /* payload too large */ } }
+    if (role === 'sim') {
+      for (const c of conns) {
+        if (!c.open) continue;
+        /* A slow line must never back up: drop a picture rather than queue it. */
+        const dc = c.dataChannel;
+        if (kind === 'mirror' && dc && dc.bufferedAmount > 400000) continue;
+        try { c.send(m); } catch (e) {}
+      }
+    } else if (conn && conn.open) {
+      try { conn.send(m); } catch (e) {}
+    }
+  }
+
+  /* role 'sim': takes ?code= or makes a new one, and starts hosting.
+     role 'console': joins when given a code (now, or later through join()). */
+  function open(asRole, c) {
+    if (role === asRole && code) return true;
+    role = asRole;
+    if (role === 'sim') {
+      setCode(c || urlCode() || newCode());
+      openLocal(); hostNetwork();
+    } else {
+      const k = c || urlCode();
+      if (k) join(k);
+    }
+    return true;
+  }
+
+  function join(c) {
+    dropNetwork(); localHeard = false; mode = 'connecting';
+    setCode(c);
+    openLocal();
+    send('sim', 'hello', { role });
+    /* Give the same-computer channel a moment; if nobody answers, go network. */
+    setTimeout(() => { if (!localHeard) joinNetwork(); }, 1200);
   }
 
   return {
-    open,
+    open, join,
+    code()   { return code; },
+    mode()   { return mode; },
+    onCode(fn) { codeFns.push(fn); if (code) fn(code); },
     on(kind, fn) { handlers[kind] = fn; },
     /* sim -> console */
     state(d)  { send('console', 'state', d); },
@@ -47,7 +159,9 @@ const Link = (function () {
     ended(d)  { send('console', 'ended', d); },
     /* console -> sim */
     cmd(name, args) { send('sim', 'cmd', { name, args }); },
-    hello()   { send(role === 'console' ? 'sim' : 'console', 'hello', { role }); },
-    isOpen()  { return !!ch; }
+    hello()   { if (code) send(role === 'console' ? 'sim' : 'console', 'hello', { role }); },
+    isOpen()  { return !!ch || !!conn || conns.size > 0; },
+    debug()   { return { role, code, mode, peer: !!(peer && peer.open), conns: conns.size,
+                         conn: !!(conn && conn.open), localHeard }; }
   };
 })();

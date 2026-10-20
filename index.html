@@ -189,6 +189,12 @@ body.trainee #top>div{background:rgba(5,8,7,.55)!important;border-radius:10px}
 body.trainee #cue{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif!important;
   border-radius:999px!important;padding:14px 30px!important;font-size:17px!important;letter-spacing:.14em!important;
   background:rgba(5,8,7,.65)!important;border:1px solid rgba(232,180,76,.5)!important}
+
+.bx-code{margin-top:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(255,255,255,.03);font:600 12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.bx-code b{font:700 26px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.18em;color:#f2c063}
+.bx-code span{text-transform:none;letter-spacing:0;font-weight:400;color:rgba(255,255,255,.45)}
+#sesstag{position:fixed;right:14px;bottom:12px;z-index:9;font:600 10px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;letter-spacing:.14em;color:rgba(255,255,255,.28);pointer-events:none}
+#sesstag b{font:700 13px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.14em;color:rgba(242,192,99,.6);margin-left:4px}
 </style>
 </head>
 <body>
@@ -285,15 +291,18 @@ body.trainee #cue{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto
       <button id="brief_go" disabled>LOADING…</button>
       <button id="popConsole" class="ghost">Open instructor console</button>
     </div>
+    <div class="bx-code">Session code <b class="sesscode">····</b><span>Instructor: type this code in the console — same computer or another one.</span></div>
     <p class="bx-note">Training aid, not certified SOP. Rules and timings are set in <code>src/config.js</code> and must be checked by the training officer before assessing anyone.</p>
   </div>
 </div>
 
 <div id="aar" class="ovl"></div>
+<div id="sesstag">SESSION <b class="sesscode">····</b></div>
 <div id="instr"></div>
 
 <script src="vendor/three.min.js"></script>
 <script src="vendor/GLTFLoader.js"></script>
+<script src="vendor/peerjs.min.js"></script>
 <script>
 /* Loaded with a cache-bust so an instructor who edits src/config.js and reloads
    always gets their own doctrine, never a stale copy out of the browser cache. */
@@ -304,6 +313,15 @@ body.trainee #cue{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto
   const v = location.protocol.indexOf('http') === 0 ? ('?v=' + Date.now()) : '';
   (function next(i) {
     if (i >= files.length) { Sim.init(); return; }
+    if (files[i] === 'assets' && typeof Link !== 'undefined') {
+      // 'link' is loaded: claim a session code now, so it is on the briefing
+      // before the models finish loading.
+      Link.onCode(c => document.querySelectorAll('.sesscode').forEach(e => e.textContent = c));
+      Link.open('sim');
+      const pc = document.getElementById('popConsole');
+      if (pc) pc.onclick = () => window.open('instructor.html?code=' + Link.code(), 'morchaConsole',
+        'width=1400,height=900,menubar=no,toolbar=no,location=no');
+    }
     const s = document.createElement('script');
     s.src = 'src/' + files[i] + '.js' + v;
     s.onload = () => next(i+1);

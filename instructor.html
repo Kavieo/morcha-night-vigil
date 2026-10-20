@@ -43,7 +43,7 @@ button{font-family:var(--sans);cursor:pointer}
 /* ---------- trainee view ---------- */
 #viewcard{padding:10px;flex:0 0 auto}
 #mirrorWrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden}
-#mirror{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:none;filter:brightness(var(--mlift,3.2)) contrast(1.12) saturate(1.1)}
+#mirror{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:none;filter:brightness(var(--mlift,1.7)) contrast(1.08)}
 #overlay{position:absolute;inset:0;width:100%;height:100%}
 #nomirror{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--dim);font-size:14px}
 #mirrorNote{position:absolute;right:10px;bottom:8px;font-size:10px;color:#9aa;letter-spacing:.06em;pointer-events:none;background:rgba(0,0,0,.45);padding:3px 7px;border-radius:4px}
@@ -107,12 +107,24 @@ details .inner{padding:0 14px 14px;display:flex;flex-direction:column;gap:14px}
 select,input[type=number]{height:32px;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:6px;padding:0 8px;font-size:12px}
 input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
 #plan{width:100%;height:auto;background:#0d1412;border-radius:8px;display:block}
+
+#join{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(6,8,10,.92);backdrop-filter:blur(6px)}
+#join.on{display:flex}
+#joinbox{width:min(420px,calc(100vw - 32px));padding:28px;border:1px solid var(--line2);border-radius:14px;background:var(--panel);display:flex;flex-direction:column;gap:12px}
+#joinbox h2{margin:8px 0 0;font-size:20px}
+#joinbox p{margin:0;color:var(--dim);font-size:13px;line-height:1.5}
+#joinbox p.small{font-size:12px}
+#joincode{height:64px;border-radius:10px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font:700 34px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.4em;text-align:center}
+#joingo{height:44px;border-radius:10px;border:0;background:var(--amber);color:#111;font-weight:700;font-size:15px;cursor:pointer}
+#sessbox{cursor:pointer}
+#sesscode{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.12em;color:var(--amber)}
 </style>
 </head>
 <body>
 
 <div id="bar">
   <div class="brand">MORCHA<small>Instructor console</small></div>
+  <div class="stat" id="sessbox" title="Change session"><span class="lbl">Session</span><span class="big" id="sesscode">—</span></div>
   <div class="stat"><span class="lbl">Shift</span><span class="big" id="clock">05:00</span></div>
   <div class="stat"><span class="lbl">Score</span><span class="big" id="score">0</span></div>
   <div class="stat"><span class="lbl">Breaches</span><span class="big" id="breach">0</span></div>
@@ -125,6 +137,17 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
     <button id="pause">Pause</button>
     <button id="end">End &amp; score</button>
   </div>
+</div>
+
+<div id="join">
+  <form id="joinbox" autocomplete="off">
+    <div class="brand">MORCHA<small>Instructor console</small></div>
+    <h2>Enter the session code</h2>
+    <p>It is shown on the trainee screen (bottom of the briefing, and bottom-right during the shift).</p>
+    <input id="joincode" inputmode="numeric" maxlength="4" placeholder="0000" pattern="[0-9]{4}">
+    <button type="submit" id="joingo">Join session</button>
+    <p class="small">Same computer or a different one — both work. A different computer needs internet.</p>
+  </form>
 </div>
 
 <div id="main">
@@ -225,6 +248,7 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
   </div>
 </div>
 
+<script src="vendor/peerjs.min.js"></script>
 <script src="src/link.js"></script>
 <script src="src/instructor.js"></script>
 </body>

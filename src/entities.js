@@ -117,8 +117,13 @@ const Contacts = (function () {
       });
       return g;
     }
+    /* Dark drab cloth, not black: under a half moon a man is a grey-brown
+       shape a shade off his ground — findable by a sentry who is looking. */
     const mat = new THREE.MeshPhongMaterial({
-      color: 0x0d0f0d, specular: 0x050505, shininess: 3 });
+      color: 0x5e5c4a, specular: 0x0c0c0a, shininess: 4,
+      /* the moon is ahead of the post, so his front is in shadow; a little
+         sky-fill keeps him a shape instead of a hole */
+      emissive: new THREE.Color(0.45, 0.45, 0.40) });
     const { group, parts } = humanoid(cls, mat);
 
     for (const m of parts) {
