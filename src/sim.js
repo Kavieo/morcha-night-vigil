@@ -668,9 +668,9 @@ function tryLock(el) {
     let done = 0, total = 8;
     Assets.load(() => {
       done++;
-      if (btn) btn.textContent = 'LOADING TERRAIN… ' + Math.round(done/total*100) + '%';
+      if (btn) btn.textContent = 'LOADING… ' + Math.round(done/total*100) + '%';
     }).then(() => {
-      if (btn) { btn.textContent = 'TAKE OVER THE MORCHA'; btn.disabled = false; }
+      if (btn) { btn.textContent = 'START — TAKE OVER THE POST'; btn.disabled = false; }
       boot();
     });
   }

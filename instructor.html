@@ -2,184 +2,227 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MORCHA :: INSTRUCTOR CONSOLE</title>
+<title>MORCHA — Instructor Console</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-:root{--amber:#e8b44c;--grn:#7fe0a4;--red:#ff5f52;--blue:#7fd4ff;--dim:#5f7a6a;
-  --line:#1e3228;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+:root{
+  --bg:#0b0f0e; --panel:#111816; --panel2:#151e1b; --line:#22302b; --line2:#2d3e38;
+  --text:#dfe9e4; --dim:#7b8e86; --faint:#4d5e57;
+  --grn:#4ade80; --amber:#fbbf24; --red:#f87171; --blue:#60a5fa;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:#050807;color:#bfe3cd;font-family:var(--mono);
-  font-size:12px;overflow:hidden}
-#wrap{display:grid;grid-template-columns:minmax(0,1fr) 360px;
-  grid-template-rows:auto minmax(0,1fr) auto auto auto;height:100%;gap:1px;background:var(--line)}
-.p{background:#070d0a;padding:10px 12px;overflow:auto}
-h4{margin:0 0 8px;font-size:9px;letter-spacing:2px;color:var(--dim);font-weight:600}
-#bar{grid-column:1/3;display:flex;gap:1px;background:var(--line)}
-#bar>div{background:#070d0a;padding:7px 14px}
-#bar .lbl{display:block;font-size:9px;letter-spacing:1.4px;color:var(--dim)}
-#bar .big{font-size:20px;color:var(--amber);font-weight:700}
-#bar .grow{flex:1;display:flex;align-items:center;color:var(--dim);font-size:11px}
-#offline{color:var(--red)}
-#map{position:relative}
-#mirrorWrap{position:relative;width:100%;background:#000;border:1px solid var(--line);
-  aspect-ratio:16/9;overflow:hidden}
-#mirror{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:none;
-  /* His screen is a correctly dark night — mean brightness ~14/255, useless as a
-     reference. The instructor is not being tested on his eyes; he needs to see
-     WHERE things are to match the man's finger. Lift it, on this side only. */
-  filter:brightness(var(--mlift,3.2)) contrast(1.12) saturate(1.1)}
-#mirrorNote{position:absolute;right:6px;bottom:4px;font-size:9px;color:#5d7a68;
-  letter-spacing:.8px;pointer-events:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px}
+button{font-family:var(--sans);cursor:pointer}
+
+/* ---------- top bar ---------- */
+#bar{display:flex;align-items:center;gap:22px;height:64px;padding:0 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+#bar .brand{font-weight:700;letter-spacing:.14em;font-size:13px;color:var(--text)}
+#bar .brand small{display:block;font-weight:500;letter-spacing:.04em;color:var(--dim);font-size:11px}
+.stat{display:flex;flex-direction:column;min-width:64px}
+.stat .lbl{font-size:10px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+.stat .big{font-family:var(--mono);font-size:22px;font-weight:600;line-height:1.15}
+#clock{color:var(--amber)} #breach{color:var(--red)}
+#met{flex:1;color:var(--dim);font-size:12px;line-height:1.4;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#offline{font-size:11px;font-weight:700;letter-spacing:.12em;padding:6px 10px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.ctl{display:flex;gap:8px}
+.ctl button{height:38px;padding:0 16px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font-weight:600;font-size:13px}
+.ctl button:hover{border-color:var(--dim)}
+#start{background:var(--grn);color:#052e16;border-color:var(--grn)}
+#pause.on{background:var(--amber);color:#3b2a00;border-color:var(--amber)}
+#end{color:var(--red)}
+
+/* ---------- layout ---------- */
+#main{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;padding:16px;height:calc(100% - 64px)}
+#left{display:flex;flex-direction:column;gap:12px;min-height:0}
+#right{display:flex;flex-direction:column;gap:12px;overflow-y:auto;min-height:0;padding-right:2px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h4{margin:0 0 10px;font-size:11px;letter-spacing:.12em;color:var(--dim);font-weight:600;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+
+/* ---------- trainee view ---------- */
+#viewcard{padding:10px;flex:0 0 auto}
+#mirrorWrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden}
+#mirror{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:none;filter:brightness(var(--mlift,3.2)) contrast(1.12) saturate(1.1)}
 #overlay{position:absolute;inset:0;width:100%;height:100%}
-#nomirror{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  color:var(--dim);font-size:11px;letter-spacing:1px}
-canvas{display:block;width:100%;height:auto;background:#040706;border:1px solid var(--line)}
-#foot{grid-column:1/3;background:#070d0a;padding:8px 12px;max-height:132px;overflow:auto}
-.e{padding:1px 0;color:#7c9c8a;line-height:1.4}
-.e .t{color:#3e5a4b;margin-right:7px}
-.e .k{color:var(--amber);margin-right:7px;font-size:9px;letter-spacing:.8px}
-.e.neg{color:#e0968f} .e.neg .k{color:var(--red)}
-button{font-family:var(--mono);background:#0d1f16;color:var(--grn);border:1px solid #27503a;
-  padding:7px 10px;font-size:10.5px;letter-spacing:1px;cursor:pointer;margin:0 3px 4px 0}
-button:hover{background:#143324}
-button:disabled{opacity:.3;cursor:not-allowed}
-button.warn{border-color:#5a4520;color:var(--amber)}
-button.danger{border-color:#5a2420;color:#ff8d84}
-button.on{background:#3a2a08;color:var(--amber);border-color:#6b5218}
-select,input[type=range],textarea,input[type=number]{font-family:var(--mono);background:#0b0f0c;
-  color:#bfe3cd;border:1px solid #2b3a2e;padding:4px;font-size:11px}
-textarea{width:100%;height:54px;resize:vertical}
-.row{display:flex;gap:6px;align-items:center;margin-bottom:7px;flex-wrap:wrap}
-.row label{width:66px;color:var(--dim);font-size:10px}
-/* --- the claim panel: the centre of the instructor's job --- */
-#claim{border:2px solid #333;padding:10px;margin-bottom:10px;background:#0a0f0c}
-#claim.live{border-color:var(--amber);background:#141005}
-#claim h3{margin:0 0 4px;font-size:13px;letter-spacing:2px;color:var(--dim)}
-#claim.live h3{color:var(--amber)}
-#claim .hint{color:var(--dim);font-size:10px;margin-bottom:8px;line-height:1.5}
-.opt{display:flex;justify-content:space-between;align-items:center;gap:8px;
-  border:1px solid var(--line);padding:6px 8px;margin-bottom:4px;background:#060b08}
-.opt b{color:#cfe9da}
-.opt .meta{color:var(--dim);font-size:10px}
-.opt.host b{color:#ff8d84} .opt.own b{color:var(--blue)} .opt.civ b{color:var(--grn)}
-.opt button{margin:0}
-/* --- ladder --- */
-.lad{display:flex;justify-content:space-between;padding:3px 0;color:#4d6658;font-size:10.5px}
+#nomirror{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--dim);font-size:14px}
+#mirrorNote{position:absolute;right:10px;bottom:8px;font-size:10px;color:#9aa;letter-spacing:.06em;pointer-events:none;background:rgba(0,0,0,.45);padding:3px 7px;border-radius:4px}
+.legend{display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--dim)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+#popTrainee{height:28px;padding:0 12px;border-radius:6px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font-size:12px;font-weight:600}
+
+/* ---------- log ---------- */
+#foot{flex:1;min-height:90px;overflow-y:auto;font-size:13px;line-height:1.55;padding:10px 14px}
+#foot .e{color:var(--dim);border-bottom:1px solid #18221f;padding:4px 0}
+#foot .t{font-family:var(--mono);color:var(--faint);margin-right:10px;font-size:12px}
+#foot .k{font-weight:700;color:var(--amber);margin-right:8px;font-size:11px;letter-spacing:.06em}
+#foot .e.neg .k{color:var(--red)}
+
+/* ---------- step 1: claim ---------- */
+#claim{border:2px solid var(--line);transition:border-color .2s}
+#claim h3{margin:0;font-size:15px;color:var(--dim);font-weight:600}
+#claim .hint{color:var(--dim);font-size:13px;line-height:1.5;margin-top:6px}
+#claim.live{border-color:var(--amber);background:#1a1608;animation:pulse 1.2s ease-in-out infinite}
+#claim.live h3{color:var(--amber);font-size:17px}
+#claim.live .hint{display:none}
+@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(251,191,36,.18)}}
+#opts{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+#opts .opt{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:8px;background:var(--panel2);border:1px solid var(--line2)}
+#opts .opt b{font-size:14px}
+#opts .opt .meta{font-size:12px;color:var(--dim);margin-top:2px;font-family:var(--mono)}
+#opts .opt.host b{color:var(--red)} #opts .opt.civ b{color:var(--grn)} #opts .opt.own b{color:var(--blue)}
+#opts button{height:36px;padding:0 14px;border-radius:8px;border:0;background:var(--grn);color:#052e16;font-weight:700;font-size:12px;white-space:nowrap}
+#opts button[data-verify="FALSE"]{background:transparent;color:var(--dim);border:1px solid var(--line2)}
+
+/* ---------- step 2: contact ---------- */
+#selhdr{font-size:17px;font-weight:700}
+#selgrid{font-family:var(--mono);color:var(--dim);font-size:13px;margin:2px 0 10px}
+.lad{font-size:13px;color:var(--faint);padding:3px 0}
 .lad.on{color:var(--grn)}
-#selhdr{color:var(--amber);font-size:13px;letter-spacing:1px}
-#selgrid{color:var(--grn);margin:2px 0 6px}
-.warnline{color:#ff8d84;font-size:10px;line-height:1.5;margin:6px 0;border-left:2px solid #5a2420;padding-left:8px}
+
+/* ---------- step 3: actions ---------- */
+#actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#actions button{height:46px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font-weight:600;font-size:13px;text-align:left;padding:0 12px;display:flex;align-items:center;gap:10px}
+#actions button span{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--line2);font-size:11px;color:var(--text);flex:0 0 auto}
+#actions button:hover{border-color:var(--dim)}
+#actions .warn{color:var(--amber);border-color:#4a3a10}
+#actions .danger{color:var(--red);border-color:#4a1d1d;grid-column:1/-1}
+#roewarn{margin-top:10px;background:#2a1414;border:1px solid #5a2323;color:#fca5a5;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.5}
+
+/* ---------- notes ---------- */
+textarea{width:100%;min-height:70px;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:8px;padding:10px;font-family:var(--sans);font-size:13px;resize:vertical}
+
+/* ---------- advanced ---------- */
+details.card{padding:0}
+details summary{list-style:none;cursor:pointer;padding:14px;font-size:11px;letter-spacing:.12em;color:var(--dim);font-weight:600;text-transform:uppercase;display:flex;justify-content:space-between}
+details summary::after{content:"Show";letter-spacing:0;text-transform:none;font-weight:500}
+details[open] summary::after{content:"Hide"}
+details .inner{padding:0 14px 14px;display:flex;flex-direction:column;gap:14px}
+.sub{font-size:11px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.row label{width:84px;color:var(--dim);font-size:12px}
+.row span{font-family:var(--mono);font-size:12px;color:var(--dim);min-width:44px}
+.small button{height:32px;padding:0 10px;border-radius:6px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font-size:12px;font-weight:600}
+.small button.on{border-color:var(--amber);color:var(--amber)}
+select,input[type=number]{height:32px;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:6px;padding:0 8px;font-size:12px}
+input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
+#plan{width:100%;height:auto;background:#0d1412;border-radius:8px;display:block}
 </style>
 </head>
 <body>
-<div id="wrap">
 
-  <div id="bar">
-    <div><span class="lbl">SHIFT</span><span class="big" id="clock">05:00</span></div>
-    <div><span class="lbl">SCORE</span><span class="big" id="score">0</span></div>
-    <div><span class="lbl">LOOSE</span><span class="big" id="loose">0</span></div>
-    <div><span class="lbl">BREACH</span><span class="big" id="breach">0</span></div>
-    <div><span class="lbl">TRAINEE ARC</span><span class="big" id="brg">0&deg;</span></div>
-    <div class="grow" id="met">waiting for the trainee screen&hellip;</div>
-    <div class="grow" style="flex:0 0 auto"><span id="offline">NOT CONNECTED</span></div>
+<div id="bar">
+  <div class="brand">MORCHA<small>Instructor console</small></div>
+  <div class="stat"><span class="lbl">Shift</span><span class="big" id="clock">05:00</span></div>
+  <div class="stat"><span class="lbl">Score</span><span class="big" id="score">0</span></div>
+  <div class="stat"><span class="lbl">Breaches</span><span class="big" id="breach">0</span></div>
+  <div class="stat"><span class="lbl">Loose</span><span class="big" id="loose">0</span></div>
+  <div class="stat"><span class="lbl">His arc</span><span class="big" id="brg">0&deg;</span></div>
+  <div id="met">Waiting for the trainee screen…</div>
+  <span id="offline">NOT CONNECTED</span>
+  <div class="ctl">
+    <button id="start">Start shift</button>
+    <button id="pause">Pause</button>
+    <button id="end">End &amp; score</button>
+  </div>
+</div>
+
+<div id="main">
+  <div id="left">
+    <div class="card" id="viewcard">
+      <h4>Trainee's view — answers shown only to you
+        <button id="popTrainee">Open trainee screen</button></h4>
+      <div id="mirrorWrap">
+        <img id="mirror" alt="">
+        <canvas id="overlay" width="1024" height="576"></canvas>
+        <div id="nomirror">Waiting for the trainee screen…</div>
+        <div id="mirrorNote">Brightened for you — his screen is darker</div>
+      </div>
+      <div class="legend">
+        <div><i style="background:var(--red)"></i>Hostile</div>
+        <div><i style="background:var(--grn)"></i>Civilian / animal</div>
+        <div><i style="background:var(--blue)"></i>Own troops</div>
+        <div>Solid box = moving · dashed = gone still</div>
+      </div>
+    </div>
+    <div class="card" id="foot"></div>
   </div>
 
-  <div class="p" id="map" style="grid-row:2">
-    <h4>HIS SCREEN &mdash; WITH THE ANSWERS ON IT
-      <span style="float:right;font-weight:400;text-transform:none;letter-spacing:0">
-        <button id="popTrainee" style="padding:3px 8px;font-size:9px;margin:0">OPEN TRAINEE SCREEN &#9656;</button>
-      </span></h4>
-    <div id="mirrorWrap">
-      <img id="mirror" alt="">
-      <canvas id="overlay" width="1024" height="576"></canvas>
-      <div id="nomirror">waiting for the trainee screen&hellip;</div>
-      <div id="mirrorNote">BRIGHTENED FOR YOU &mdash; HIS SCREEN IS DARKER</div>
-    </div>
-    <h4 style="margin-top:12px">GROUND TRUTH &mdash; PLAN VIEW</h4>
-    <canvas id="plan" width="1200" height="430"></canvas>
-    <div style="margin-top:8px;color:var(--dim);font-size:10px;line-height:1.6">
-      The wedge is the slice the trainee can currently see. Red = hostile ·
-      green = civilian · blue = own troops · dim = resolved.
-      Click any contact to select it for the ladder.
-    </div>
-  </div>
-
-  <div class="p" style="grid-row:2/4">
-    <div id="claim">
-      <h3>NO CLAIM</h3>
-      <div class="hint">When he presses his button, what he could honestly have
-        seen appears here. Watch where he points, then confirm or reject.</div>
+  <div id="right">
+    <div class="card" id="claim">
+      <h3>Step 1 · Wait for his report</h3>
+      <div class="hint">When the trainee presses SPACE, the contacts he could have seen appear here. Watch where he points, then pick the one he means.</div>
       <div id="opts"></div>
     </div>
 
-    <h4>SELECTED CONTACT</h4>
-    <div id="sel"><span style="color:var(--dim)">None. Verify a claim, or click a contact on the map.</span></div>
-
-    <h4 style="margin-top:12px">LADDER &mdash; PRESS AS HE CALLS IT</h4>
-    <div>
-      <button data-cmd="report">REPORT GRID</button>
-      <button data-cmd="challenge">CHALLENGE</button>
-      <button data-cmd="light">SEARCHLIGHT</button>
-      <button data-cmd="flare">PARA-ILLUM</button>
-      <button data-cmd="qrt">DISPATCH QRT</button>
-      <button data-cmd="warning" class="warn">WARNING SHOT</button>
-      <button data-cmd="engage" class="danger">AIMED FIRE</button>
+    <div class="card">
+      <h4>Step 2 · Contact</h4>
+      <div id="sel"><span style="color:var(--dim)">None yet. Confirm a report above.</span></div>
     </div>
-    <div class="warnline" id="roewarn" style="display:none"></div>
 
-    <h4 style="margin-top:12px">PICTURE &mdash; MATCH IT TO THE PROJECTOR</h4>
-    <div class="row"><label>Brightness</label>
-      <input id="expo" type="range" min="30" max="200" value="105"><span id="expov">0.105</span></div>
-    <div class="row"><label>Lamp glow</label>
-      <input id="bloom" type="range" min="0" max="120" value="34"><span id="bloomv">0.34</span></div>
+    <div class="card">
+      <h4>Step 3 · Do what he calls, in order</h4>
+      <div id="actions">
+        <button data-cmd="report"><span>1</span>Report grid</button>
+        <button data-cmd="challenge"><span>2</span>Challenge</button>
+        <button data-cmd="light"><span>3</span>Searchlight</button>
+        <button data-cmd="flare"><span>3</span>Para-illum flare</button>
+        <button data-cmd="qrt"><span>4</span>Send QRT</button>
+        <button data-cmd="warning" class="warn"><span>5</span>Warning shot</button>
+        <button data-cmd="engage" class="danger"><span>6</span>Aimed fire</button>
+      </div>
+      <div id="roewarn" style="display:none"></div>
+    </div>
 
-    <h4 style="margin-top:12px">HIS SIGHT</h4>
-    <div>
-      <button data-optic="0">1 WIDE</button>
-      <button data-optic="1">2 BINO</button>
-      <button data-optic="2">3 THERMAL</button>
-      <button data-optic="3">4 NVG</button>
+    <div class="card">
+      <h4>Remarks for his report</h4>
+      <textarea id="notes" placeholder="What he did well, what he missed."></textarea>
     </div>
-    <div class="row" style="margin-top:6px">
-      <label>Slew arc</label>
-      <button data-nudge="-10">&laquo;&laquo;</button>
-      <button data-nudge="-3">&laquo;</button>
-      <button data-nudge="3">&raquo;</button>
-      <button data-nudge="10">&raquo;&raquo;</button>
-      <input id="aim" type="number" value="0" step="1" style="width:60px">
-      <button id="aimgo">GO</button>
-    </div>
+
+    <details class="card">
+      <summary>Advanced controls</summary>
+      <div class="inner">
+        <div>
+          <div class="sub">Map — click a contact to select it</div>
+          <canvas id="plan" width="1200" height="620"></canvas>
+        </div>
+        <div>
+          <div class="sub">His sight</div>
+          <div class="row small">
+            <button data-optic="0">Eyes</button><button data-optic="1">Binoculars</button>
+            <button data-optic="2">Thermal</button><button data-optic="3">Night vision</button>
+          </div>
+        </div>
+        <div>
+          <div class="sub">Turn his view</div>
+          <div class="row small">
+            <button data-nudge="-10">&laquo; 10°</button><button data-nudge="-3">&lsaquo; 3°</button>
+            <button data-nudge="3">3° &rsaquo;</button><button data-nudge="10">10° &raquo;</button>
+            <input id="aim" type="number" value="0" step="1" style="width:64px"><button id="aimgo">Go</button>
+          </div>
+        </div>
+        <div>
+          <div class="sub">Add a contact</div>
+          <div class="row small">
+            <select id="itype">
+              <option>INFILTRATOR</option><option>SMUGGLER</option><option>CIVILIAN</option>
+              <option>CATTLE</option><option>NILGAI</option><option>DOG</option><option>OWN_TROOPS</option>
+            </select>
+            <input id="ibrg" type="range" min="-58" max="58" value="0"><span id="ibrgv">0&deg;</span>
+            <button id="igo">Add</button>
+          </div>
+        </div>
+        <div>
+          <div class="sub">Conditions</div>
+          <div class="row"><label>Fog</label><input id="fog" type="range" min="8" max="90" value="16"><span id="fogv">clear</span></div>
+          <div class="row"><label>Speed</label><input id="ts" type="range" min="1" max="12" value="1"><span id="tsv">&times;1</span></div>
+          <div class="row"><label>Brightness</label><input id="expo" type="range" min="30" max="200" value="105"><span id="expov">0.105</span></div>
+          <div class="row"><label>Lamp glow</label><input id="bloom" type="range" min="0" max="120" value="34"><span id="bloomv">0.34</span></div>
+        </div>
+        <div class="row small"><button id="reveal">Show all contacts on his screen</button></div>
+      </div>
+    </details>
   </div>
-
-  <div class="p" style="grid-column:1/2;grid-row:3">
-    <h4>EXERCISE CONTROL</h4>
-    <div class="row">
-      <label>Inject</label>
-      <select id="itype">
-        <option>INFILTRATOR</option><option>SMUGGLER</option><option>CIVILIAN</option>
-        <option>CATTLE</option><option>NILGAI</option><option>DOG</option><option>OWN_TROOPS</option>
-      </select>
-      <input id="ibrg" type="range" min="-58" max="58" value="0"><span id="ibrgv">0&deg;</span>
-      <button id="igo">INJECT</button>
-    </div>
-    <div class="row">
-      <label>Visibility</label><input id="fog" type="range" min="8" max="90" value="16"><span id="fogv">clear</span>
-      <label style="width:auto;margin-left:10px">Time</label>
-      <input id="ts" type="range" min="1" max="12" value="1"><span id="tsv">&times;1</span>
-    </div>
-    <div>
-      <button id="reveal">REVEAL ALL</button>
-      <button id="pause">PAUSE</button>
-      <button id="start">START SHIFT</button>
-      <button id="end" class="danger">END &amp; SCORE</button>
-    </div>
-  </div>
-
-  <div class="p" style="grid-column:1/2;grid-row:4">
-    <h4>REMARKS &mdash; CARRIED INTO HIS AAR</h4>
-    <textarea id="notes" placeholder="What he did well, what he walked past."></textarea>
-  </div>
-
-  <div id="foot" style="grid-row:5"><div class="e"><span class="k">CONSOLE</span>Open the trainee screen (index.html) in a second window on the projector.</div></div>
 </div>
 
 <script src="src/link.js"></script>

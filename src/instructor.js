@@ -86,7 +86,7 @@
     const live = connected && Date.now() - lastSeen < 3000;
     const hidden = live && S && S.hidden;
     $('offline').textContent = !live ? 'NOT CONNECTED'
-      : hidden ? 'TRAINEE SCREEN HIDDEN — HELD' : 'LINKED';
+      : hidden ? 'TRAINEE SCREEN HIDDEN' : 'LINKED';
     $('offline').style.color = !live ? 'var(--red)' : hidden ? 'var(--amber)' : 'var(--grn)';
   }, 500);
 
@@ -198,14 +198,14 @@
     const box = $('claim'), opts = $('opts');
     const pc = S && S.pendingClaim;
     if (!pc) {
-      box.className = ''; box.querySelector('h3').textContent = 'NO CLAIM';
+      box.className = ''; box.querySelector('h3').textContent = 'Step 1 · Wait for his report';
       opts.innerHTML = ''; return;
     }
     box.className = 'live';
-    box.querySelector('h3').textContent = 'CLAIM AT ' + clk(pc.t);
+    box.querySelector('h3').textContent = 'He reported at ' + clk(pc.t) + ' — which one is he pointing at?';
     if (!pc.options.length) {
       opts.innerHTML = '<div class="opt"><b>Nothing was out there.</b>' +
-        '<button data-verify="FALSE">FALSE ALARM</button></div>';
+        '<button data-verify="FALSE">False alarm</button></div>';
     } else {
       opts.innerHTML = pc.options.map(o =>
         '<div class="opt ' + (o.own ? 'own' : o.hostile ? 'host' : 'civ') + '">' +
@@ -213,9 +213,9 @@
           '<div class="meta">' + (o.bearing > 0 ? '+' : '') + o.bearing + '° · ' +
             o.range + ' m · ' + (o.moving ? 'moving' : 'still') +
             (o.designated ? ' · already held' : '') + '</div></div>' +
-          '<button data-verify="' + o.id + '">HE MEANT THIS</button></div>').join('') +
+          '<button data-verify="' + o.id + '">This one</button></div>').join('') +
         '<div class="opt"><b>He pointed at empty ground</b>' +
-        '<button data-verify="FALSE">FALSE ALARM</button></div>';
+        '<button data-verify="FALSE">False alarm</button></div>';
     }
   }
 
@@ -232,7 +232,7 @@
   /* ---------- selected contact + ROE guard --------------------------------- */
   function paintSel() {
     const s = S && S.selected, box = $('sel'), w = $('roewarn');
-    if (!s) { box.innerHTML = '<span style="color:var(--dim)">None. Verify a claim, or click a contact on the map.</span>';
+    if (!s) { box.innerHTML = '<span style="color:var(--dim)">None yet. Confirm a report above.</span>';
               w.style.display = 'none'; return; }
     selId = s.id;
     const rung = (l, on) => '<div class="lad ' + (on ? 'on' : '') + '"><span>' +
@@ -276,7 +276,7 @@
   $('reveal').onclick = () => { Link.cmd('reveal'); $('reveal').classList.toggle('on'); };
   $('pause').onclick  = () => { const p = !$('pause').classList.contains('on');
     Link.cmd('pause', { v: p }); $('pause').classList.toggle('on', p);
-    $('pause').textContent = p ? 'RESUME' : 'PAUSE'; };
+    $('pause').textContent = p ? 'Resume' : 'Pause'; };
   $('start').onclick  = () => Link.cmd('start');
   $('end').onclick    = () => Link.cmd('end');
   $('notes').oninput  = e => Link.cmd('notes', { v: e.target.value });

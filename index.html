@@ -163,6 +163,32 @@ body.trainee #cue{display:block}
 #claimbox h3{margin:0 0 10px;color:var(--amber);font-size:20px;letter-spacing:4px}
 #claimbox p{margin:0 0 14px;color:#bfe3cd;font-size:14px;letter-spacing:1px}
 #claimbox .wait{color:var(--dim);font-size:11px;letter-spacing:2px}
+
+/* ---------- simplified briefing + trainee chrome ---------- */
+#brief{background:radial-gradient(ellipse at top,#10201a 0%,#050807 70%)!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.bx{max-width:760px!important;width:100%}
+.bx-kicker{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#7b8e86}
+.bx-title{font-size:56px!important;letter-spacing:.12em!important;margin:6px 0 10px!important;color:#e8b44c!important;font-weight:800}
+.bx-lead{font-size:18px!important;color:#dfe9e4!important;line-height:1.5!important;margin:0 0 28px!important;max-width:620px}
+.bx-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+.bx-step{display:flex;gap:12px;background:#111816;border:1px solid #22302b;border-radius:12px;padding:16px}
+.bx-step>b{flex:0 0 32px;height:32px;border-radius:50%;background:#e8b44c;color:#1a1200;display:flex;align-items:center;justify-content:center;font-size:15px}
+.bx-step h3{margin:2px 0 4px;font-size:16px;color:#fff;letter-spacing:0}
+.bx-step p{margin:0!important;font-size:13px!important;color:#9fb1a9!important;line-height:1.45!important}
+.bx-rules{display:flex;flex-direction:column;gap:8px;border-left:3px solid #e8b44c;padding:4px 0 4px 16px;margin-bottom:28px;font-size:15px;color:#c9d6d0;line-height:1.5}
+.bx-rules b{color:#fff}
+.bx-actions{display:flex;gap:12px;flex-wrap:wrap}
+.bx-actions button{height:52px;padding:0 28px;border-radius:10px;font-size:15px!important;font-weight:700;letter-spacing:.04em;font-family:inherit!important;background:#4ade80!important;color:#052e16!important;border:0!important}
+.bx-actions button:disabled{background:#22302b!important;color:#7b8e86!important;cursor:wait}
+.bx-actions button.ghost{background:transparent!important;color:#dfe9e4!important;border:1px solid #2d3e38!important}
+.bx-note{margin-top:22px!important;font-size:11px!important;color:#5d6e67!important}
+@media (max-width:760px){.bx-steps{grid-template-columns:1fr}.bx-title{font-size:40px!important}}
+body.trainee #optics,body.trainee #top>div:last-child{display:none!important}
+body.trainee #top{background:transparent!important;border:0!important}
+body.trainee #top>div{background:rgba(5,8,7,.55)!important;border-radius:10px}
+body.trainee #cue{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif!important;
+  border-radius:999px!important;padding:14px 30px!important;font-size:17px!important;letter-spacing:.14em!important;
+  background:rgba(5,8,7,.65)!important;border:1px solid rgba(232,180,76,.5)!important}
 </style>
 </head>
 <body>
@@ -238,139 +264,28 @@ body.trainee #cue{display:block}
 
 <!-- ============================ BRIEFING ============================ -->
 <div id="brief" class="ovl" style="display:flex">
-  <div class="box">
-    <h1>MORCHA :: NIGHT VIGIL</h1>
-    <h2>BORDER OBSERVATION &amp; INFILTRATION-DETECTION TRAINER — PUNJAB / JAMMU IB SECTOR</h2>
+  <div class="box bx">
+    <div class="bx-kicker">BSF · Night border observation trainer</div>
+    <h1 class="bx-title">MORCHA</h1>
+    <p class="bx-lead">You are the sentry in this post. Five minutes. Watch your ground and report every contact.</p>
 
-    <p>You are the sentry in an elevated <b>morcha</b> on the Anti-Infiltration Obstacle System.
-    You hold <b>this post's assigned arc</b> — the embrasure gives you 58° either side and the
-    flanking morchas hold the rest. Your shift is one compressed night — five minutes. Across the zero line
-    there is scrub, elephant grass and a nallah, and behind that the <b>Pakistan Rangers BOPs</b>,
-    lit, with their towers up, watching you back. Some of what moves out there is cattle.
-    Some of it is a man on his belly.</p>
-
-    <p><b>You cannot watch the whole arc.</b> That is the exercise. Everything below follows from it.</p>
-
-    <div class="cols">
-      <div>
-        <h3>HOW YOU WORK THIS</h3>
-        <div>
-          You do not touch the machine. You watch the screen with your own eyes,
-          exactly as you would watch your ground.<br><br>
-          The moment you have something, press <b>SPACE</b>. Then
-          <b>point at it on the screen</b> — hand or laser — and give the
-          bearing out loud.<br><br>
-          The instructor confirms whether you were right, and works the
-          radio, the light and the QRT as you call for them. Ask for
-          binoculars or thermal by name; he will put them up for you.
-        </div>
-      </div>
-      <div>
-        <h3>WHY IT IS DONE THIS WAY</h3>
-        <div>
-          A sentry does not aim a mouse. He looks, he decides, he reports and
-          he points.<br><br>
-          Pressing the button marks the exact second you saw it. That second is
-          what you are judged on at the end — against the second the contact
-          first became visible, and where your arc was pointing at the time.
-        </div>
-      </div>
+    <div class="bx-steps">
+      <div class="bx-step"><b>1</b><div><h3>Watch</h3><p>Use only your eyes. Don't touch the computer.</p></div></div>
+      <div class="bx-step"><b>2</b><div><h3>Press SPACE</h3><p>The moment you see something.</p></div></div>
+      <div class="bx-step"><b>3</b><div><h3>Point and say it</h3><p>Point at it on the screen, say the bearing, then call every action out loud.</p></div></div>
     </div>
 
-    <div class="cols">
-      <div>
-        <h3>HOW YOU ACTUALLY DETECT HIM</h3>
-        <div>
-          You will not see the man. At 250 m a prone crawler is a few pixels.<br>
-          <b>You will see the grass.</b> Wind is steady and from one direction — watch the
-          bearing tape. A patch of grass working <b>across</b> the prevailing wind, in short
-          bursts, is a body moving through it.<br><br>
-          He moves when your arc is elsewhere and freezes the moment you settle on him.
-          Sweeping fast reveals nothing. Sweeping slowly leaves the rest of the arc blind.
-        </div>
-      </div>
-      <div>
-        <h3>THE GROUND WILL TELL YOU WHERE</h3>
-        <div>
-          <b>Dead floodlights.</b> Three lamps on the fence are u/s. Those dark gaps are
-          marked <b>U/S</b> on your bearing tape. That is where a trained infiltrator goes.<br><br>
-          <b>The nallah.</b> The culvert under the fence on the left flank is dead ground the
-          whole way in.<br><br>
-          <b>Noise is a lie.</b> If you hear movement on one flank, ask what it is pulling you off.
-        </div>
-      </div>
+    <div class="bx-rules">
+      <div><b>Grass moving against the wind</b> is a man crawling.</div>
+      <div><b>Dark gaps in the fence lights</b> and <b>the nallah</b> are where they cross.</div>
+      <div><b>Never fire across the zero line</b>, at an unarmed person, or at our own patrol.</div>
     </div>
 
-    <div class="cols">
-      <div>
-        <h3>YOUR SIGHTS ALL COST YOU SOMETHING</h3>
-        <div>
-          You watch with your <b>own eyes</b>. Ask the instructor for anything else by name.<br><br>
-          <b>Naked eye</b> — wide arc, blind past 150 m.<br>
-          <b>Binocular</b> — detail and <b>the only way to confirm a weapon</b>, but a 7° field.<br>
-          <b>Thermal</b> — sees heat through grass, and cannot tell a farmer from an infiltrator.<br>
-          <b>Image intensifier</b> — detail at night, and <b>blooms out for 4 seconds</b> if
-          your own flare catches it.
-        </div>
-      </div>
-      <div>
-        <h3>THE LADDER IS NOT OPTIONAL</h3>
-        <div>
-          Observe → report grid → challenge → illuminate → QRT → warning shot → aimed fire.<br><br>
-          <b>Call each one out loud.</b> The instructor works the radio, the loudhailer, the
-          light, the QRT and the rifle for you — in the order you call them.<br><br>
-          The <b>QRT takes 42 seconds</b> to reach a grid. A crawler's final dash at the wire is quicker than that.
-          You must commit your reserve on a suspicion, and it arrives where you
-          <b>said</b>, not where he <b>is</b>.
-        </div>
-      </div>
+    <div class="bx-actions">
+      <button id="brief_go" disabled>LOADING…</button>
+      <button id="popConsole" class="ghost">Open instructor console</button>
     </div>
-
-    <div class="cols">
-      <div>
-        <h3>WHAT IS ACROSS THE LINE</h3>
-        <div>
-          Three <b>Rangers BOPs</b> sit 200–300 m inside Pakistan, marked <b>PAK</b> on your
-          bearing tape. Their lamps burn all night. They are a fixed reference, a permanent
-          distraction, and the reason for the hardest rule you hold:<br><br>
-          <b>Rounds do not cross the International Boundary.</b> Anything still beyond the zero
-          line is on Pakistani soil, whatever it is doing. You may engage a man in no-man's land.
-          You may not engage the same man thirty metres further back.
-        </div>
-      </div>
-      <div>
-        <h3>WHAT IS BEHIND YOU</h3>
-        <div>
-          The <b>A Coy patrol</b> walks the track on our own side of the wire, twice a shift.
-          Armed, upright, moving with purpose. After ten minutes of staring into the far scrub
-          you will want to designate them.<br><br>
-          Challenge before you do anything else — they answer with the password.
-          <b>Aimed fire on them ends the shift and your career.</b>
-        </div>
-      </div>
-    </div>
-
-    <div class="warn">
-      <b>CONSEQUENCE.</b> One infiltrator through the fence fails the shift.
-      Aimed fire on an unarmed man — a cultivator near the zero line, a smuggler with his hands
-      empty — is a <b>Court of Inquiry</b>, and it scores worse than a breach. Rounds across the
-      IB is a <b>cross-border firing incident</b>. Rounds at our own patrol is <b>fratricide</b>.
-      You will be shown, at the end, the exact minute the grass moved and where your arc was
-      pointing at that moment.
-    </div>
-
-    <p class="dim" style="font-size:11px;border-left:2px solid #2b3a2e;padding-left:12px">
-      TRAINING AID — NOT A CERTIFIED SOP REFERENCE. The escalation ladder, ROE gates and timings
-      are configurable placeholders in <b>src/config.js</b> and must be reviewed against current
-      unit SOP by the training officer before this is used to assess any trainee.
-      Instructor controls: press <b>I</b>.
-    </p>
-
-    <button id="brief_go" style="margin-top:18px" disabled>LOADING TERRAIN…</button>
-    <p style="margin-top:14px">
-      <button id="popConsole" style="padding:8px 18px;font-size:11px">OPEN INSTRUCTOR CONSOLE &#9656;</button>
-      <span class="dim" style="font-size:11px;margin-left:12px">Opens as a separate window — keep it on your own screen, and drag this one to the projector.</span>
-    </p>
+    <p class="bx-note">Training aid, not certified SOP. Rules and timings are set in <code>src/config.js</code> and must be checked by the training officer before assessing anyone.</p>
   </div>
 </div>
 
