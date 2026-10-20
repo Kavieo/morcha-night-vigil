@@ -103,6 +103,20 @@ const Contacts = (function () {
   }
 
   function bodyFor(cls) {
+    /* Gemini 4 Argon animals: a real zebu cow, nilgai and stray dog. */
+    const GM = { 'CATTLE': 'g_cow', 'NILGAI': 'g_nilgai', 'STRAY DOG': 'g_dog' }[cls.label];
+    if (GM && Assets.has(GM)) {
+      const g = Assets.group(GM);
+      const v = cls.heat;
+      g.traverse(m => {
+        if (!m.isMesh) return;
+        m.castShadow = true;
+        World.heatables.push(m);
+        m.userData.matNormal = m.material;
+        m.userData.matThermal = new THREE.MeshBasicMaterial({ color: new THREE.Color(v, v, v*0.96), fog: true });
+      });
+      return g;
+    }
     const mat = new THREE.MeshPhongMaterial({
       color: 0x0d0f0d, specular: 0x050505, shininess: 3 });
     const { group, parts } = humanoid(cls, mat);

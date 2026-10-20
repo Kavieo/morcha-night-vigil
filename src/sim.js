@@ -665,7 +665,7 @@ function tryLock(el) {
     /* Load the real geometry before building anything — the world places
        instanced props, so it needs the meshes in hand. */
     const btn = document.getElementById('brief_go');
-    let done = 0, total = 8;
+    let done = 0, total = Assets.count();
     Assets.load(() => {
       done++;
       if (btn) btn.textContent = 'LOADING… ' + Math.round(done/total*100) + '%';

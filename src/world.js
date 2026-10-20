@@ -124,17 +124,29 @@ const World = (function () {
     skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
       uniforms: { uMoonDir:{value:new THREE.Vector3(-0.55,0.42,0.72).normalize()},
-                  uMoon:{value:0.55}, uThermal:{value:0}, uFlare:{value:0}, uGain:{value:GAIN} },
+                  uMoon:{value:0.55}, uThermal:{value:0}, uFlare:{value:0}, uGain:{value:GAIN},
+                  uSky:{value:null}, uHasSky:{value:0}, uSkyGain:{value:1.0} },
       vertexShader:`varying vec3 vD; void main(){ vD=normalize(position);
         gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
       fragmentShader:`
-        uniform vec3 uMoonDir; uniform float uMoon,uThermal,uFlare,uGain; varying vec3 vD;
+        uniform vec3 uMoonDir; uniform float uMoon,uThermal,uFlare,uGain,uHasSky,uSkyGain; varying vec3 vD;
+        uniform sampler2D uSky;
         void main(){
           float h = clamp(vD.y, -0.1, 1.0);
-          // night sky gradient: faint airglow at the horizon, deep blue-black above
-          vec3 zen = vec3(0.0016,0.0026,0.0062);
-          vec3 hor = vec3(0.0085,0.0120,0.0210) * (0.5 + uMoon);
-          vec3 c = mix(hor, zen, pow(clamp(h,0.0,1.0), 0.42));
+          vec3 c;
+          if (uHasSky > 0.5) {
+            /* Gemini 4 Argon equirectangular night (Bortle 3-4, Milky Way, half
+               moon). Decoded sRGB -> linear; it already holds its own moon. */
+            vec3 d = normalize(vD);
+            float u = atan(d.x, -d.z) / 6.2831853 + 0.5;
+            float v = asin(clamp(d.y, -1.0, 1.0)) / 3.1415927 + 0.5;
+            vec3 t = texture2D(uSky, vec2(u, v)).rgb;
+            c = pow(t, vec3(2.2)) * uSkyGain;
+          } else {
+            vec3 zen = vec3(0.0016,0.0026,0.0062);
+            vec3 hor = vec3(0.0085,0.0120,0.0210) * (0.5 + uMoon);
+            c = mix(hor, zen, pow(clamp(h,0.0,1.0), 0.42));
+          }
           // sodium glow from the fence floodlights and the villages, low on the horizon
           /* 2000 km of 1000 W sodium throws a hard orange band along the whole
              horizon over the fence. It is the loudest thing in the sky here. */
@@ -143,14 +155,23 @@ const World = (function () {
           c += vec3(0.075,0.032,0.0065) * glow * (0.40 + toFence*0.95);
           // the moon and its halo
           float md = max(dot(normalize(vD), uMoonDir), 0.0);
-          c += vec3(0.85,0.88,1.0) * pow(md, 2200.0) * 2.2 * uMoon;
-          c += vec3(0.055,0.065,0.095) * pow(md, 14.0) * uMoon;
+          if (uHasSky < 0.5) {
+            c += vec3(0.85,0.88,1.0) * pow(md, 2200.0) * 2.2 * uMoon;
+            c += vec3(0.055,0.065,0.095) * pow(md, 14.0) * uMoon;
+          }
           c += vec3(0.9,0.85,0.7) * uFlare * 0.035 * glow;
           c = mix(c, vec3(0.004), uThermal);
           gl_FragColor = vec4(c*uGain,1.0);
         }`
     });
-    scene.add(new THREE.Mesh(new THREE.SphereGeometry(2400, 32, 20), skyMat));
+    scene.add(new THREE.Mesh(new THREE.SphereGeometry(2400, 64, 32), skyMat));
+    TL.load('models/gemini/night_sky_360_equirectangular_8192x4096.jpg', t => {
+      t.encoding = THREE.LinearEncoding;          // decoded by hand in the shader
+      t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+      t.anisotropy = 8; t.wrapS = THREE.RepeatWrapping;
+      skyMat.uniforms.uSky.value = t; skyMat.uniforms.uHasSky.value = 1;
+      if (stars) stars.visible = false;           // the panorama has real stars
+    });
 
     // stars — thin them out toward the horizon where the haze eats them
     const N = 1400, pos = new Float32Array(N*3), sz = new Float32Array(N);
@@ -462,8 +483,9 @@ const World = (function () {
     const xs = [];
     for (let x = -half; x <= half; x += SPAN) xs.push(x);
     const detailXs = xs.filter(x => Math.abs(x) <= DETAIL);
-    const nPost = xs.length * rows.length;
-    const nFork = detailXs.length * rows.length * 2;
+    const gemFence = Assets.has('g_fence');
+    const nPost = (gemFence ? xs.filter(x => Math.abs(x) > DETAIL).length : xs.length) * rows.length;
+    const nFork = gemFence ? 1 : detailXs.length * rows.length * 2;
 
     const postGeo = anglePostGeo(PH);
     const posts = new THREE.InstancedMesh(postGeo, steel, nPost);
@@ -472,10 +494,25 @@ const World = (function () {
     const footGeo = new THREE.CylinderGeometry(0.17, 0.21, 0.30, 7);
     const foots = new THREE.InstancedMesh(footGeo, conc, nPost);
 
+    /* Gemini 4 Argon fence bay inside the arc: galvanised L-posts with Y
+       outriggers, footings and the razor coils. Its barbed strands are left
+       out on purpose — thin wire as geometry crawls and flickers at 150 m; the
+       mip-mapped wire panel below does that job without glitching. */
+    const GEM = Assets.has('g_fence');
+    if (GEM) {
+      const bays = detailXs.filter(x => x + SPAN <= half + 0.01);
+      const ims = Assets.instancedParts('g_fence', bays.length, (i, dd) => {
+        const cx = bays[i] + SPAN / 2;
+        dd.position.set(cx, heightAt(cx, W.fenceZ), W.fenceZ);
+      }, { skip: ['Barbed'] });
+      for (const m of ims) { m.castShadow = true; scene.add(m); registerHeat(m, 0.06); }
+    }
+
     const d = new THREE.Object3D();
     let pi = 0, fi = 0;
     for (const rz of rows) {
       for (const x of xs) {
+        if (GEM && Math.abs(x) <= DETAIL) continue;     // Gemini bay stands here
         const y = heightAt(x, rz);
         d.position.set(x, y, rz); d.rotation.set(0, 0, 0); d.scale.set(1,1,1);
         d.updateMatrix(); posts.setMatrixAt(pi, d.matrix);
@@ -492,6 +529,7 @@ const World = (function () {
         }
       }
     }
+    posts.count = pi; forks.count = fi;   // Gemini bays replace the inner posts
     posts.instanceMatrix.needsUpdate = true;
     forks.instanceMatrix.needsUpdate = true;
     foots.instanceMatrix.needsUpdate = true;
@@ -618,6 +656,20 @@ const World = (function () {
       const g = new THREE.Group();
       const reg = (m, h) => { m.castShadow = true; g.add(m); registerHeat(m, h); return m; };
 
+      const GEMM = Assets.has('g_mast');
+      if (GEMM) {
+        /* Gemini mast: lamps face +Z in the file; mirrored in Z so they face
+           downrange (-Z) and the bracket stays on -X, where every light,
+           wire-glow and grass term in this file already expects the heads. */
+        const mast = Assets.group('g_mast', { mat: pp => {
+          if (pp.name.indexOf('glass') >= 0)
+            return new THREE.MeshBasicMaterial({ color: dead ? hdr(0.04,0.038,0.03) : hdr(2.10,1.12,0.30) });
+          const m = pp.mat.clone(); m.side = THREE.DoubleSide; return m; } });
+        mast.scale.set(1, 1, -1);
+        mast.traverse(m => { if (m.isMesh) { m.castShadow = true; registerHeat(m, m.name.indexOf('glass') >= 0 ? (dead ? 0.08 : 0.95) : 0.06); } });
+        g.add(mast);
+      }
+      if (!GEMM) {
       reg(new THREE.Mesh(flangeG, steel), 0.09).position.set(0, 0.03, 0);
       reg(new THREE.Mesh(poleG, steel), 0.06).position.set(0, MH/2, 0);
       const cond = reg(new THREE.Mesh(condG, steel), 0.07);
@@ -626,9 +678,20 @@ const World = (function () {
       const arm = reg(new THREE.Mesh(armG, steel), 0.06);
       arm.position.set(-1.25, MH + 0.42, 0); arm.rotation.z = 0.06;
 
+      }   // end procedural mast
       // three housings along the bracket, canted down and slightly splayed
       for (let k = 0; k < 3; k++) {
-        const hx = -0.35 - k * 0.82;
+        const hx = GEMM ? (-0.62 - k * 0.82) : (-0.35 - k * 0.82);
+        if (GEMM) {
+          if (!dead) {
+            const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+              map: poolTex, color: hdr(0.72, 0.33, 0.075), transparent: true, opacity: 0.52,
+              blending: THREE.AdditiveBlending, depthWrite: false, fog: true }));
+            halo.scale.set(2.6, 2.6, 1);
+            halo.position.set(hx, 10.55, -0.16); g.add(halo); visLights.push(halo);
+          }
+          continue;
+        }
         const h = new THREE.Group();
         h.add(new THREE.Mesh(bodyG, housing));
         const hood = new THREE.Mesh(hoodG, housing); hood.position.set(0, 0.21, 0.06); h.add(hood);
@@ -798,7 +861,20 @@ const World = (function () {
     /* The camera never translates — it only rotates about the morcha — so a
        quad turned to face the origin is always correctly oriented. No billboard
        shader needed, and it stays one draw call per species. */
-    for (let k = 0; k < KINDS.length; k++) {
+    /* Gemini 4 Argon trees: kikar, eucalyptus, shisham as real 3D models. */
+    const GT = [['g_kikar', 110], ['g_euc', 80], ['g_shisham', 100]].filter(t => Assets.has(t[0]));
+    for (const [name, n] of GT) {
+      const ims = Assets.instancedParts(name, n, (i, dd) => {
+        const x = (Math.random()-0.5)*2700;
+        const z = W.treelineZ - Math.random()*190;
+        const k = 0.75 + Math.random()*0.55;
+        dd.position.set(x, heightAt(x, z) - 0.1, z);
+        dd.scale.set(k, k * (0.9 + Math.random()*0.25), k);
+        dd.rotation.y = Math.random() * Math.PI * 2;
+      });
+      for (const m of ims) { scene.add(m); registerHeat(m, 0.07); }
+    }
+    for (let k = 0; k < (GT.length ? 0 : KINDS.length); k++) {
       const kind = KINDS[k];
       const mat = new THREE.MeshBasicMaterial({
         map: treeTex(kind, k*37+11), transparent: true, alphaTest: 0.42,
@@ -1023,6 +1099,43 @@ const World = (function () {
 
     const add = (m, heat) => { g.add(m); World.__reg(m, heat); return m; };
 
+    if (Assets.has('g_morcha')) {
+      /* Gemini 4 Argon bunker: concrete room, hessian sandbags on the slit,
+         field telephone, logbook, binoculars, ammo crate. Its slit faces +Z in
+         the file; turned PI it faces downrange and its inner face lands
+         exactly on FW. Plus the INSAS on the sill. */
+      const room = Assets.group('g_morcha');
+      room.rotation.y = Math.PI;
+      room.position.set(0, FLOOR, 0);
+      /* At night the inside of a morcha is near-black: nothing lights it but a
+         red panel lamp and floodlight spill through the slit. Gemini's atlas is
+         day-bright, so darken it, and smooth the low-poly bags' facets. */
+      room.traverse(m => {
+        if (!m.isMesh) return;
+        m.material = m.material.clone();
+        m.material.color.multiplyScalar(0.32);
+        if (m.material.roughness !== undefined) m.material.roughness = 1.0;
+        m.geometry = m.geometry.clone(); m.geometry.computeVertexNormals();
+        m.castShadow = true; m.receiveShadow = true; World.__reg(m, 0.30);
+      });
+      g.add(room);
+      const rifle = Assets.group('g_insas');
+      if (rifle) {
+        rifle.rotation.y = Math.PI / 2 - 0.18;    // muzzle out over the parapet
+        rifle.position.set(-1.15, FLOOR + 1.02, FW - 0.18);
+        rifle.traverse(m => { if (m.isMesh) World.__reg(m, 0.20); });
+        g.add(rifle);
+      }
+      scene.add(g);
+      const red = new THREE.PointLight(0xff2a12, 0.12*GAIN, 4.6, 2);
+      red.position.set(0.58, SILL+0.30, FW-0.05); scene.add(red);
+      const spill = new THREE.PointLight(0xff9a4a, 0.26*GAIN, 11.0, 2);
+      spill.position.set(0.6, SILL+0.55, FW-3.0); scene.add(spill);
+      const back = new THREE.PointLight(0x8899bb, 0.030*GAIN, 5.0, 2);
+      back.position.set(0, FLOOR+2.2, 1.0); scene.add(back);
+      return { red, spill, back };
+    }
+
     // floor and ceiling
     add(new THREE.Mesh(new THREE.BoxGeometry(HW*2, 0.22, RR-FW+0.9), concrete), 0.30)
       .position.set(0, FLOOR-0.11, (RR+FW)/2);
@@ -1202,7 +1315,15 @@ const World = (function () {
     for (const p of posts) {
       const g = new THREE.Group();
       const reg = (m, h) => { g.add(m); World.__reg(m, h); return m; };
-
+      const GEMR = Assets.has('g_rangers');
+      if (GEMR) {
+        // Gemini model faces +Z (toward us); this group is turned PI for the lamps
+        const bop = Assets.group('g_rangers');
+        bop.rotation.y = Math.PI;
+        bop.traverse(m => { if (m.isMesh) { m.castShadow = true; World.__reg(m, 0.14); } });
+        g.add(bop);
+      }
+      if (!GEMR) {
       // plinth and single-storey block
       reg(new THREE.Mesh(new THREE.BoxGeometry(17, 1.1, 11), conc), 0.13).position.set(0, 0.55, 0);
       reg(new THREE.Mesh(new THREE.BoxGeometry(12, 3.2, 7), conc), 0.15).position.set(-1.5, 2.7, 1.0);
@@ -1242,6 +1363,7 @@ const World = (function () {
           specular: 0x000000, shininess: 0 })), 0.12);
       flag.position.set(-7.2, 11.0, -3.0);
       g.userData.flag = flag;
+      }   // end procedural BOP
 
       // their lighting: a couple of lamps plus the sodium wash over the post
       const poolTex = radialTex('rgba(255,236,196,0.92)','rgba(255,205,140,0)');
@@ -1262,7 +1384,8 @@ const World = (function () {
       // the tower cab's own light, small and high — a fixed point on the horizon
       const cab = new THREE.Mesh(new THREE.SphereGeometry(0.17, 6, 5),
         new THREE.MeshBasicMaterial({ color: hdr(0.5, 0.18, 0.10) }));
-      cab.position.set(6.2, T+1.6, -4.9); g.add(cab); World.__reg(cab, 0.8);
+      cab.position.set(GEMR ? -7.1 : 6.2, GEMR ? 9.6 : T+1.6, GEMR ? -3.9 : -4.9);
+      g.add(cab); World.__reg(cab, 0.8);
 
       g.position.set(p.x, heightAt(p.x, p.z), p.z);
       g.rotation.y = Math.PI + (Math.random()-0.5)*0.25;     // they face us
@@ -1329,7 +1452,10 @@ const World = (function () {
       const amb  = new THREE.AmbientLight(0x1b2738, 0.105*GAIN); scene.add(amb);
       const hemi = new THREE.HemisphereLight(0x22304a, 0x0d0a05, 0.085*GAIN); scene.add(hemi);
       const moon = new THREE.DirectionalLight(0xaec4e8, 0.085*GAIN);
-      moon.position.set(-220,180,290); scene.add(moon);
+      // the panorama's moon sits at bearing +35 deg, 35 deg up: light from there
+      moon.position.set(Math.sin(0.61)*Math.cos(0.61)*400, Math.sin(0.61)*400,
+                        -Math.cos(0.61)*Math.cos(0.61)*400);
+      scene.add(moon);
       buildSky(); buildGround(); buildGrass(); buildFence();
       buildNallah(); buildTreeline(); buildRangersPosts();
       buildMist(); interiorLights = buildMorcha(); buildMotes();
