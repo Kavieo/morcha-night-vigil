@@ -125,7 +125,7 @@ const World = (function () {
       side: THREE.BackSide, depthWrite: false, fog: false,
       uniforms: { uMoonDir:{value:new THREE.Vector3(-0.55,0.42,0.72).normalize()},
                   uMoon:{value:0.55}, uThermal:{value:0}, uFlare:{value:0}, uGain:{value:GAIN},
-                  uSky:{value:null}, uHasSky:{value:0}, uSkyGain:{value:1.0} },
+                  uSky:{value:null}, uHasSky:{value:0}, uSkyGain:{value:18.0} },
       vertexShader:`varying vec3 vD; void main(){ vD=normalize(position);
         gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
       fragmentShader:`
@@ -141,7 +141,9 @@ const World = (function () {
             float u = atan(d.x, -d.z) / 6.2831853 + 0.5;
             float v = asin(clamp(d.y, -1.0, 1.0)) / 3.1415927 + 0.5;
             vec3 t = texture2D(uSky, vec2(u, v)).rgb;
-            c = pow(t, vec3(2.2)) * uSkyGain;
+            /* Steeper curve keeps the black between the stars black while the
+               Milky Way and the moon lift — it has to read through the night grade. */
+            c = pow(t, vec3(2.7)) * uSkyGain;
           } else {
             vec3 zen = vec3(0.0016,0.0026,0.0062);
             vec3 hor = vec3(0.0085,0.0120,0.0210) * (0.5 + uMoon);
