@@ -73,7 +73,7 @@ const Optics = (function () {
        once. It used to apply it here AND there, which scaled the glow by
        exposure squared — about 0.3% of what was intended. */
     brightMat = new THREE.ShaderMaterial({
-      uniforms: { uTex:{value:rt.texture}, uExposure:{value:0.105}, uCut:{value:0.55} },
+      uniforms: { uTex:{value:rt.texture}, uExposure:{value:0.18}, uCut:{value:0.55} },
       depthTest:false, depthWrite:false, vertexShader: VQ,
       fragmentShader:`uniform sampler2D uTex; uniform float uExposure,uCut; varying vec2 vUv;
         void main(){ vec3 h = texture2D(uTex,vUv).rgb;
@@ -104,7 +104,7 @@ const Optics = (function () {
     uni = {
       uTex:{value:rt.texture}, uTime:{value:0}, uMode:{value:0},
       uBloom:{value:0}, uGain:{value:1}, uAspect:{value:w/h},
-      uFlash:{value:0}, uFatigue:{value:0}, uExposure:{value:0.105},
+      uFlash:{value:0}, uFatigue:{value:0}, uExposure:{value:0.18},
       uB0:{value:mips[0].texture}, uB1:{value:mips[1].texture},
       uB2:{value:mips[2].texture}, uB3:{value:mips[3].texture},
       uBloomW:{value:new THREE.Vector4(0.50, 0.62, 0.78, 0.95)},

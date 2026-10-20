@@ -30,7 +30,14 @@
   });
 
   function paintOverlay() {
-    const c = $('overlay'), g = c.getContext('2d'), W = c.width, H = c.height;
+    /* Draw at the screen's real resolution — a fixed 1024px canvas stretched
+       over the panel made every label blurry. */
+    const c = $('overlay'), g = c.getContext('2d');
+    const dpr = window.devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight;
+    if (c.width !== Math.round(W*dpr) || c.height !== Math.round(H*dpr)) {
+      c.width = Math.round(W*dpr); c.height = Math.round(H*dpr);
+    }
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, H);
     if (!S || !S.truth) return;
     const now = Date.now();

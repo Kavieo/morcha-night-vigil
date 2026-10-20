@@ -152,7 +152,7 @@ const World = (function () {
              horizon over the fence. It is the loudest thing in the sky here. */
           float glow  = exp(-pow(max(h,0.0)*11.0, 1.5));
           float toFence = smoothstep(-0.15, 0.75, -normalize(vD).z);
-          c += vec3(0.075,0.032,0.0065) * glow * (0.40 + toFence*0.95);
+          c += vec3(0.055,0.024,0.005) * glow * (0.40 + toFence*0.95);
           // the moon and its halo
           float md = max(dot(normalize(vD), uMoonDir), 0.0);
           if (uHasSky < 0.5) {

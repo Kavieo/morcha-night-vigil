@@ -477,9 +477,12 @@ function tryLock(el) {
       flareLight.target.updateMatrixWorld();
     }
     World.setFlare(fi, flareLight.position);
-    lights.amb.intensity  = (0.16 + fi*0.20) * World.GAIN;
-    lights.hemi.intensity = (0.13 + fi*0.15) * World.GAIN;
-    lights.moon.intensity = (0.30 + fi*0.12) * World.GAIN;
+    /* Half-moon night, Bortle 3-4: enough moonlight that the ground, the
+       scrub, the trees and the Rangers posts read as shapes — a sentry can see
+       his ground under a half moon. */
+    lights.amb.intensity  = (0.30 + fi*0.20) * World.GAIN;
+    lights.hemi.intensity = (0.28 + fi*0.15) * World.GAIN;
+    lights.moon.intensity = (1.05 + fi*0.12) * World.GAIN;
 
     if (light.on) {
       light.battery -= dt;
@@ -586,14 +589,14 @@ function tryLock(el) {
     const src = renderer.domElement;
     if (!mirrorCv) {
       mirrorCv = document.createElement('canvas');
-      mirrorCv.width = 512; mirrorCv.height = 288;
+      mirrorCv.width = 1280; mirrorCv.height = 720;
       mirrorCtx = mirrorCv.getContext('2d');
     }
     const a = src.width / src.height;
-    mirrorCv.height = Math.round(512 / a);
+    mirrorCv.height = Math.round(1280 / a);
     try {
       mirrorCtx.drawImage(src, 0, 0, mirrorCv.width, mirrorCv.height);
-      return mirrorCv.toDataURL('image/jpeg', 0.45);
+      return mirrorCv.toDataURL('image/jpeg', 0.78);
     } catch (e) { return null; }
   }
 
