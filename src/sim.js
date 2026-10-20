@@ -482,7 +482,7 @@ function tryLock(el) {
        his ground under a half moon. */
     lights.amb.intensity  = (0.30 + fi*0.20) * World.GAIN;
     lights.hemi.intensity = (0.28 + fi*0.15) * World.GAIN;
-    lights.moon.intensity = (1.05 + fi*0.12) * World.GAIN;
+    lights.moon.intensity = (1.45 + fi*0.12) * World.GAIN;
 
     if (light.on) {
       light.battery -= dt;

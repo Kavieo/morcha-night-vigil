@@ -286,7 +286,7 @@
     b.onclick = () => Link.cmd('optic', { i: +b.getAttribute('data-optic') }));
   document.querySelectorAll('[data-nudge]').forEach(b =>
     b.onclick = () => Link.cmd('nudge', { d: +b.getAttribute('data-nudge') }));
-  $('aimgo').onclick = () => Link.cmd('aim', { bearing: +$('aim').value, pitch: 0 });
+  $('aimgo').onclick = () => Link.cmd('aim', { bearing: +$('aim').value, pitch: -3 });
   $('expo').oninput  = e => { const v = +e.target.value/1000; $('expov').textContent = v.toFixed(3);
                               Link.cmd('picture', { exposure: v }); };
   $('bloom').oninput = e => { const v = +e.target.value/100; $('bloomv').textContent = v.toFixed(2);

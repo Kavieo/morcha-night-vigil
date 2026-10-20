@@ -88,7 +88,7 @@ const DOCTRINE = {
     fenceWidth:     900,   // visible frontage
     floodlightGap:   55,   // metres between fence floodlights
     deadFloodlights:[4,5,9],// which floodlights are u/s — the DARK GAPS (all inside the arc)
-    culvertX:      -180,   // nallah / culvert crossing point (a known weak point)
+    culvertX:       -95,   // nallah / culvert crossing point (a known weak point)
     arcLimit:        58,   // the post's ASSIGNED arc, degrees either side of centre.
                            // The embrasure jambs enforce it. Flanking morchas hold the rest.
     patrolZ:       -133,   // the home-side patrol track

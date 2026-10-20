@@ -19,7 +19,7 @@ const Optics = (function () {
   const MIPS = 4;            // glow levels: tight core -> wide soft halo
   let MSAA = false, PR = 1;
   let SS = 1.45;              // supersample factor — fallback path only
-  let yaw = 0, pitch = 0, zoom = 1, modeIdx = 0;
+  let yaw = 0, pitch = -0.05, zoom = 1, modeIdx = 0;   // eyes a touch below the horizon, on his ground
   let sway = 0;
 
   function build(renderer, w, h) {
@@ -144,6 +144,11 @@ const Optics = (function () {
                 + texture2D(uTex, uv + vec2(-o.x, -o.y)).rgb ) * 0.25;
           } else {
             c = texture2D(uTex, uv).rgb;  // MSAA already resolved it
+            /* crisp it: a light unsharp mask brings out the hessian weave, the
+               wire and the scrub edges that a resolved, tonemapped frame softens */
+            vec3 nb = ( texture2D(uTex, uv + vec2(uTexel.x, 0.0)).rgb + texture2D(uTex, uv - vec2(uTexel.x, 0.0)).rgb
+                      + texture2D(uTex, uv + vec2(0.0, uTexel.y)).rgb + texture2D(uTex, uv - vec2(0.0, uTexel.y)).rgb ) * 0.25;
+            c = max(c + (c - nb) * 0.55, vec3(0.0));
           }
           /* glare: tight core + progressively wider halo */
           vec3 bl = texture2D(uB0,uv).rgb*uBloomW.x + texture2D(uB1,uv).rgb*uBloomW.y
@@ -165,11 +170,17 @@ const Optics = (function () {
                Desaturating everything uniformly is the day-for-night look and
                it is wrong. Split it by luminance instead.                   */
             float l = dot(c, vec3(0.28,0.60,0.12));
-            float photopic = smoothstep(0.055, 0.30, l);
-            vec3  rods = vec3(l*0.58, l*0.78, l*1.32);
-            c = mix(rods, c, photopic);
-            c += (g-0.5)*0.030;                       // retinal noise in the dark
-            c *= 1.0 - smoothstep(0.36,0.80,r)*0.62;
+            float photopic = smoothstep(0.035, 0.22, l);
+            vec3  rods = vec3(l*0.66, l*0.84, l*1.22);
+            /* keep some colour in the moonlit range — a dark-adapted eye under a
+               half moon still sees the warm hessian and the violet horizon */
+            c = mix(mix(rods, c, 0.38), c, photopic);
+            // grade: cool, deep shadows; warm, clean highlights
+            c += vec3(-0.006, 0.000, 0.012) * (1.0 - smoothstep(0.0, 0.35, l));
+            c *= mix(vec3(1.0), vec3(1.05, 1.0, 0.94), smoothstep(0.25, 0.8, l));
+            c = (c - 0.5) * 1.06 + 0.5;               // a touch of contrast
+            c += (g-0.5)*0.016;                       // retinal noise in the dark
+            c *= 1.0 - smoothstep(0.42,0.95,r)*0.48;
 
           } else if(uMode < 1.5){
             /* ---- BINOCULAR: twin-circle field, hard black outside ----------

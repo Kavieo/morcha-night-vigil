@@ -123,14 +123,17 @@ const World = (function () {
   function buildSky() {
     skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: { uMoonDir:{value:new THREE.Vector3(-0.55,0.42,0.72).normalize()},
+      uniforms: { uMoonDir:{value:new THREE.Vector3(0.430,0.191,-0.882).normalize()},
                   uMoon:{value:0.55}, uThermal:{value:0}, uFlare:{value:0}, uGain:{value:GAIN},
-                  uSky:{value:null}, uHasSky:{value:0}, uSkyGain:{value:18.0} },
+                  uSky:{value:null}, uHasSky:{value:0}, uSkyGain:{value:19.0}, uSkyBias:{value:5.0} },
       vertexShader:`varying vec3 vD; void main(){ vD=normalize(position);
         gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
       fragmentShader:`
-        uniform vec3 uMoonDir; uniform float uMoon,uThermal,uFlare,uGain,uHasSky,uSkyGain; varying vec3 vD;
+        uniform vec3 uMoonDir; uniform float uMoon,uThermal,uFlare,uGain,uHasSky,uSkyGain,uSkyBias; varying vec3 vD;
         uniform sampler2D uSky;
+        float mh(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+        float mn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+          return mix(mix(mh(i),mh(i+vec2(1,0)),f.x), mix(mh(i+vec2(0,1)),mh(i+vec2(1,1)),f.x), f.y); }
         void main(){
           float h = clamp(vD.y, -0.1, 1.0);
           vec3 c;
@@ -140,10 +143,12 @@ const World = (function () {
             vec3 d = normalize(vD);
             float u = atan(d.x, -d.z) / 6.2831853 + 0.5;
             float v = asin(clamp(d.y, -1.0, 1.0)) / 3.1415927 + 0.5;
-            vec3 t = texture2D(uSky, vec2(u, v)).rgb;
-            /* Steeper curve keeps the black between the stars black while the
-               Milky Way and the moon lift — it has to read through the night grade. */
-            c = pow(t, vec3(2.7)) * uSkyGain;
+            /* Only the panorama's DIFFUSE light is used: the Milky Way's glow,
+               its dust lanes and the airglow, sampled from a blurred mip. Its
+               baked star dots are magnified 1.5x at this field of view and read
+               as snow; the stars are drawn separately as true pinpoints. */
+            vec3 t = texture2D(uSky, vec2(u, v), uSkyBias).rgb;
+            c = pow(t, vec3(2.4)) * uSkyGain;
           } else {
             vec3 zen = vec3(0.0016,0.0026,0.0062);
             vec3 hor = vec3(0.0085,0.0120,0.0210) * (0.5 + uMoon);
@@ -156,11 +161,30 @@ const World = (function () {
           float toFence = smoothstep(-0.15, 0.75, -normalize(vD).z);
           c += vec3(0.055,0.024,0.005) * glow * (0.40 + toFence*0.95);
           // the moon and its halo
-          float md = max(dot(normalize(vD), uMoonDir), 0.0);
-          if (uHasSky < 0.5) {
-            c += vec3(0.85,0.88,1.0) * pow(md, 2200.0) * 2.2 * uMoon;
-            c += vec3(0.055,0.065,0.095) * pow(md, 14.0) * uMoon;
+          /* A waxing gibbous moon rising over the Pakistani side, low in the
+             arc: limb-darkened disc with its maria, a tight aureole and a wide
+             faint halo in the haze. Drawn a little larger than life, the way
+             the eye sees a moon near the horizon. */
+          vec3 dn = normalize(vD);
+          float ang = acos(clamp(dot(dn, uMoonDir), -1.0, 1.0));
+          const float MR = 0.0125;
+          if (ang < MR * 1.15) {
+            vec3 rt = normalize(cross(uMoonDir, vec3(0.0,1.0,0.0)));
+            vec3 up = cross(rt, uMoonDir);
+            vec2 q = vec2(dot(dn, rt), dot(dn, up)) / MR;
+            float rr = length(q);
+            float limb = sqrt(max(0.0, 1.0 - rr*rr));
+            float m = mn(q*1.9 + 3.1)*0.55 + mn(q*4.3 - 1.7)*0.30 + mn(q*10.0)*0.15;
+            float alb = mix(1.0, 0.58, smoothstep(0.44, 0.68, m));
+            // gibbous: the terminator sweeps in from the upper left
+            float lit = smoothstep(-0.55, -0.25, dot(normalize(vec3(q, limb)), normalize(vec3(-0.45, 0.25, 0.86))) - 0.0) ;
+            lit = smoothstep(0.0, 0.35, dot(vec3(q, limb), normalize(vec3(0.62, 0.20, 0.76))) + 0.18);
+            float disc = 1.0 - smoothstep(0.97, 1.02, rr);
+            vec3 mc = vec3(1.0, 0.96, 0.88) * alb * (0.50 + 0.50*limb) * lit * 3.4 * uMoon / 0.55;
+            c = mix(c, c + mc, disc);
           }
+          c += vec3(0.50, 0.52, 0.62) * exp(-ang * 60.0) * 0.045 * uMoon / 0.55;
+          c += vec3(0.16, 0.17, 0.24) * exp(-ang * 7.0) * 0.022 * uMoon / 0.55;
           c += vec3(0.9,0.85,0.7) * uFlare * 0.035 * glow;
           c = mix(c, vec3(0.004), uThermal);
           gl_FragColor = vec4(c*uGain,1.0);
@@ -171,9 +195,89 @@ const World = (function () {
       t.encoding = THREE.LinearEncoding;          // decoded by hand in the shader
       t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
       t.anisotropy = 8; t.wrapS = THREE.RepeatWrapping;
-      skyMat.uniforms.uSky.value = t; skyMat.uniforms.uHasSky.value = 1;
-      if (stars) stars.visible = false;           // the panorama has real stars
+      /* Pre-blur the panorama once into a smooth glow map: the baked star
+         dots melt into the band, and there are no blocky low-mip texels. */
+      let glow = t;
+      try {
+        const cv = document.createElement('canvas'); cv.width = 2048; cv.height = 1024;
+        const cx = cv.getContext('2d');
+        if ('filter' in cx) { cx.filter = 'blur(7px)'; cx.drawImage(t.image, -16, -16, 2080, 1056); }
+        else {
+          const sm = document.createElement('canvas'); sm.width = 384; sm.height = 192;
+          sm.getContext('2d').drawImage(t.image, 0, 0, 384, 192);
+          cx.imageSmoothingQuality = 'high'; cx.drawImage(sm, 0, 0, 2048, 1024);
+        }
+        glow = new THREE.CanvasTexture(cv);
+        glow.wrapS = THREE.RepeatWrapping; glow.minFilter = THREE.LinearMipmapLinearFilter;
+        skyMat.uniforms.uSkyBias.value = 0.0;
+      } catch (e) {}
+      skyMat.uniforms.uSky.value = glow; skyMat.uniforms.uHasSky.value = 1;
+      buildStarfield(t.image);
     });
+    /* A Bortle 3-4 sky: thousands of pinpoints, densest along the Milky Way.
+       Star density follows the panorama's own glow, so the points and the band
+       agree; brightness follows a real magnitude spread — a few bright, most
+       barely there. Drawn at 1-3 device pixels: stars are points, not discs. */
+    function buildStarfield(img) {
+      let lum = null, LW = 256, LH = 128;
+      try {
+        const cv = document.createElement('canvas'); cv.width = LW; cv.height = LH;
+        const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0, LW, LH);
+        const d = cx.getImageData(0, 0, LW, LH).data; lum = new Float32Array(LW * LH);
+        for (let i = 0; i < LW * LH; i++) lum[i] = (d[i*4] + d[i*4+1] + d[i*4+2]) / 765;
+      } catch (e) {}
+      let lo = 1, hi = 0;
+      if (lum) for (const v of lum) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+      const N = 16000, P = [], S = [], C = [];
+      let guard = 0;
+      while (P.length < N * 3 && guard++ < N * 12) {
+        const y = Math.pow(Math.random(), 0.8);              // upper hemisphere
+        const th = Math.random() * Math.PI * 2, r = Math.sqrt(1 - y * y);
+        const dx = r * Math.sin(th), dz = -r * Math.cos(th);
+        let band = 0.5;
+        if (lum) {
+          const u = Math.atan2(dx, -dz) / (Math.PI * 2) + 0.5, v = Math.asin(y) / Math.PI + 0.5;
+          const ix = Math.min(LW - 1, Math.floor(u * LW)), iy = Math.min(LH - 1, Math.floor((1 - v) * LH));
+          band = (lum[iy * LW + ix] - lo) / Math.max(1e-3, hi - lo);
+        }
+        if (Math.random() > 0.18 + 0.82 * Math.pow(band, 1.3)) continue;
+        const haze = Math.min(1, y * 5.0);                   // the horizon haze eats the faint ones
+        const m = Math.pow(Math.random(), 7.0);              // magnitude: most faint, few bright
+        P.push(dx * 2200, y * 2200, dz * 2200);
+        S.push(m);
+        const k = Math.random();                             // colour: blue-white to orange
+        C.push(k < 0.15 ? 1.0 : k < 0.7 ? 0.92 : 0.80, k < 0.15 ? 0.82 : 0.94, k < 0.15 ? 0.62 : 1.0);
+        C.push(haze);
+      }
+      const n = S.length, sg = new THREE.BufferGeometry();
+      const cols = new Float32Array(n * 3), haz = new Float32Array(n);
+      for (let i = 0; i < n; i++) { cols[i*3] = C[i*4]; cols[i*3+1] = C[i*4+1]; cols[i*3+2] = C[i*4+2]; haz[i] = C[i*4+3]; }
+      sg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+      sg.setAttribute('aMag', new THREE.Float32BufferAttribute(S, 1));
+      sg.setAttribute('aCol', new THREE.BufferAttribute(cols, 3));
+      sg.setAttribute('aHaze', new THREE.BufferAttribute(haz, 1));
+      const sm = new THREE.ShaderMaterial({
+        transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+        uniforms: { uT: { value: 0 }, uPx: { value: window.devicePixelRatio || 1 }, uGain: { value: GAIN }, uStar: { value: 3.0 } },
+        vertexShader: `attribute float aMag, aHaze; attribute vec3 aCol;
+          varying vec3 vC; uniform float uT, uPx, uGain, uStar;
+          void main(){
+            float tw = 0.80 + 0.20 * sin(uT * (2.0 + aMag * 3.0) + position.x * 0.37 + position.z * 0.11);
+            float b = (0.035 + 1.6 * aMag) * aHaze * tw;
+            vC = aCol * b * uGain * uStar;
+            gl_PointSize = (1.15 + 2.2 * aMag) * uPx;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }`,
+        fragmentShader: `varying vec3 vC; void main(){
+          vec2 q = gl_PointCoord - 0.5; float d = dot(q, q) * 4.0;
+          float a = exp(-d * 3.2);
+          gl_FragColor = vec4(vC * a, 1.0); }`
+      });
+      const pts = new THREE.Points(sg, sm);
+      pts.frustumCulled = false;
+      if (stars) { scene.remove(stars); }
+      stars = pts; scene.add(stars);
+    }
 
     // stars — thin them out toward the horizon where the haze eats them
     const N = 1400, pos = new Float32Array(N*3), sz = new Float32Array(N);
@@ -213,13 +317,55 @@ const World = (function () {
   }
 
   /* ---------- ground ------------------------------------------------------- */
+  /* Punjab border ground: dry, cracked earth with patches of dead grass and
+     stubble. Two scanned CC0 surfaces (Poly Haven), blended by a world-space
+     noise so there is no visible tiling, plus a large-scale tone variation —
+     the darker damp hollows and paler dry crowns the eye reads as distance. */
+  function groundMaterial() {
+    const ph = (f, srgb) => { const t = TL.load('tex/ph/' + f); t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = 16; if (srgb) t.encoding = THREE.sRGBEncoding; return t; };
+    const mapA = ph('dry_ground_01_diff.jpg', true), norA = ph('dry_ground_01_nor.jpg');
+    const mapB = ph('aerial_grass_rock_diff.jpg', true), norB = ph('aerial_grass_rock_nor.jpg');
+    // Phong with no specular: dry earth has no sheen. (A PBR material's grazing
+    // Fresnel, with the moon ahead and low, turned the whole field to snow.)
+    const m = new THREE.MeshPhongMaterial({ map: mapA, normalMap: norA, specular: 0x000000, shininess: 1,
+      color: new THREE.Color(0.080, 0.074, 0.066) });
+    m.normalScale.set(1.4, 1.4);
+    m.onBeforeCompile = sh => {
+      sh.uniforms.mapB = { value: mapB }; sh.uniforms.norB = { value: norB };
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vGW;')
+        .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>
+          uniform sampler2D mapB, norB; varying vec3 vGW;
+          float gh(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+          float gn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+            return mix(mix(gh(i),gh(i+vec2(1,0)),f.x), mix(gh(i+vec2(0,1)),gh(i+vec2(1,1)),f.x), f.y); }
+          float gf(vec2 p){ return gn(p)*0.5 + gn(p*2.03+7.1)*0.3 + gn(p*4.1-3.3)*0.2; }`)
+        .replace('#include <map_fragment>', `
+          vec2 wuv = vGW.xz / 7.0;
+          vec2 wuvB = mat2(0.8,-0.6,0.6,0.8) * vGW.xz / 9.5;
+          float mixB = smoothstep(0.38, 0.66, gf(vGW.xz * 0.018));
+          vec3 cA = texture2D(map, wuv).rgb, cB = texture2D(mapB, wuvB).rgb;
+          // break up the tile repeat with a second, rotated, larger sample of A
+          cA = mix(cA, texture2D(map, mat2(0.6,0.8,-0.8,0.6) * vGW.xz / 23.0).rgb, 0.35);
+          vec3 cc = mix(cA, cB, mixB);
+          float macro = 0.70 + 0.55 * gf(vGW.xz * 0.006 + 3.0);
+          diffuseColor.rgb *= cc * macro;
+          float gMixB = mixB;`)
+        .replace('#include <normal_fragment_maps>', `
+          vec3 nA = texture2D(normalMap, wuv).xyz * 2.0 - 1.0;
+          vec3 nB = texture2D(norB, wuvB).xyz * 2.0 - 1.0;
+          vec3 mapN = normalize(mix(nA, nB, gMixB));
+          mapN.xy *= normalScale;
+          normal = perturbNormal2Arb(-vViewPosition, normal, mapN, faceDirection);`);
+    };
+    return m;
+  }
+
   function buildGround() {
-    const soil = new THREE.MeshPhongMaterial({
-      map: tex('soil_diff.jpg', 300, true),
-      normalMap: tex('soil_nor_gl.jpg', 300),
-      color: 0x1c1915, specular: 0x050505, shininess: 2
-    });
-    soil.normalScale.set(1.25, 1.25);
+    const soil = groundMaterial();
     // 240x240 quads out to 2.4 km: enough to carry the folds without a mesh cost
     const g = new THREE.PlaneGeometry(4800, 4800, 240, 240);
     const pa = g.attributes.position;
@@ -299,6 +445,8 @@ const World = (function () {
       if (!near && Math.random()<0.09) tall = true;      // scattered standing patches
       // cleared strip on the far side of the wire — he loses his cover for the last 25 m
       if (!near && z > W.fenceZ - 26) continue;
+      // the water channel itself stays open: reeds on the banks, not in the stream
+      if (Math.abs(x - W.culvertX) < 7.5 && z < W.fenceZ - 4) continue;
 
       /* Open ground is grazed and cut short — from an elevated OP a prone man
          is only partly hidden by it. The TALL patches (the nallah, and a few
@@ -785,11 +933,53 @@ const World = (function () {
       new THREE.MeshPhongMaterial({ map:tex('soil_diff.jpg',120,true), color:0x2b2a25,
         specular:0x000000, shininess:0 }));
     bed.position.set(cx,0.02,W.fenceZ+40); bed.rotation.y=Math.PI;
-    scene.add(bed); registerHeat(bed,0.14);
+    /* The terrain already carries the cut; this solid prism capped it with a
+       flat lid at ground level and hid it. Left out: the nallah is open. */
     const mouth=new THREE.Mesh(new THREE.BoxGeometry(10,3.6,9), conc);
     mouth.position.set(cx,1.3,W.fenceZ+1.6); scene.add(mouth); registerHeat(mouth,0.12);
     const lip=new THREE.Mesh(new THREE.BoxGeometry(13,0.6,1.2), conc);
     lip.position.set(cx,3.3,W.fenceZ-3); scene.add(lip); registerHeat(lip,0.12);
+
+    /* Standing water down the nallah bed. At this grazing angle water is a
+       mirror: it throws back the violet horizon and the sodium glow of the
+       fence, broken up by ripples — a bright ribbon that tells the eye exactly
+       where the cut runs, while the banks either side stay black. */
+    const wg = new THREE.PlaneGeometry(13, 760, 8, 380);
+    wg.rotateX(-Math.PI/2);
+    const water = new THREE.Mesh(wg, new THREE.ShaderMaterial({
+      transparent: false, fog: false,
+      uniforms: { uT: { value: 0 }, uGain: { value: GAIN }, uFence: { value: W.fenceZ } },
+      vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position,1.0);
+        vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+      fragmentShader: `uniform float uT, uGain, uFence; varying vec3 vW;
+        float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+        float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+          return mix(mix(h(i),h(i+vec2(1,0)),f.x), mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x), f.y); }
+        void main(){
+          vec3 V = normalize(cameraPosition - vW);
+          vec2 p = vW.xz;
+          // two ripple trains drifting downstream, plus a slow wind chop
+          float r = n(p*vec2(0.9,0.22) + vec2(0.0, uT*0.35)) * 0.6
+                  + n(p*vec2(2.3,0.6) - vec2(uT*0.2, uT*0.5)) * 0.4;
+          vec3 N = normalize(vec3((r-0.5)*0.22, 1.0, (n(p*0.5+uT*0.1)-0.5)*0.35));
+          float fr = 0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
+          vec3 R = reflect(-V, N);
+          float el = max(R.y, 0.0);
+          vec3 sky = mix(vec3(0.050,0.038,0.080), vec3(0.010,0.013,0.030), smoothstep(0.0, 0.25, el));
+          // the fence floodlights' sodium band, reflected
+          float sod = exp(-pow(el*14.0, 1.4)) * smoothstep(60.0, 0.0, abs(vW.z - uFence + 40.0) * 0.1 + 0.0);
+          sky += vec3(0.11, 0.050, 0.012) * exp(-pow(el*10.0, 1.5)) * 0.8;
+          vec3 c = sky * fr;
+          // glints where a ripple faces the camera and the light together
+          c += vec3(0.20,0.16,0.12) * pow(max(r - 0.72, 0.0) * 3.4, 3.0) * fr;
+          float d = length(cameraPosition - vW);
+          c *= exp(-d * 0.0012);
+          gl_FragColor = vec4(c * uGain * 3.2, 1.0);
+        }`
+    }));
+    water.position.set(cx, -1.72, W.fenceZ + 30 - 380);
+    scene.add(water); registerHeat(water, 0.10);
+    World.__water = water;
   }
 
   /* ---------- tree silhouettes ---------------------------------------------
@@ -875,6 +1065,22 @@ const World = (function () {
         dd.rotation.y = Math.random() * Math.PI * 2;
       });
       for (const m of ims) { scene.add(m); registerHeat(m, 0.07); }
+    }
+    /* A few of the same trees on our own side, flanking the arc: they frame
+       the view, give the eye scale, and leave the centre of the arc open. */
+    const NEAR = [['g_kikar', -46, -72, 2.0], ['g_shisham', -74, -112, 2.2], ['g_euc', 55, -84, 2.0],
+                  ['g_kikar', 82, -128, 2.2], ['g_shisham', -68, -138, 1.9], ['g_kikar', 34, -132, 1.7],
+                  ['g_euc', -112, -150, 2.1], ['g_shisham', 118, -168, 2.1], ['g_kikar', -128, -96, 2.0],
+                  ['g_shisham', 104, -92, 2.0]];
+    for (const name of ['g_kikar', 'g_euc', 'g_shisham']) {
+      if (!Assets.has(name)) continue;
+      const mine = NEAR.filter(t => t[0] === name);
+      const ims = Assets.instancedParts(name, mine.length, (i, dd) => {
+        const [, x, z, k] = mine[i];
+        dd.position.set(x, heightAt(x, z) - 0.1, z);
+        dd.scale.set(k, k, k); dd.rotation.y = i * 2.3 + x;
+      });
+      for (const m of ims) { m.castShadow = true; m.receiveShadow = true; scene.add(m); registerHeat(m, 0.07); }
     }
     for (let k = 0; k < (GT.length ? 0 : KINDS.length); k++) {
       const kind = KINDS[k];
@@ -1082,6 +1288,86 @@ const World = (function () {
   const OP_EYE = 9.35;
   const ARC    = 70;                 // degrees either side of the post's centre line
 
+  /* ---------- hessian sandbags ---------------------------------------------- */
+  function sandbagGeo() {
+    // a sphere with its poles at the two ends, pushed out into a filled sack:
+    // squarish in section, flat on top and bottom, gathered to a tie at each end
+    const g = new THREE.SphereGeometry(0.5, 40, 28);
+    g.rotateZ(Math.PI / 2);                       // poles on X
+    const p = g.attributes.position;
+    const sp = (v, e) => Math.sign(v) * Math.pow(Math.abs(v), e);
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i) * 2, y = p.getY(i) * 2, z = p.getZ(i) * 2;   // unit sphere
+      const ax = Math.abs(x);
+      let X = sp(x, 0.30);
+      // cross-section: near-square, slightly crowned top, pressed-flat bottom
+      let Y = sp(y, 0.55), Z = sp(z, 0.32);
+      if (Y < 0) Y *= 0.92;
+      // the gathered ends: the section collapses into the tie over the last 12 %
+      const pinch = Math.pow(ax, 9);
+      Y *= 1 - 0.80 * pinch; Z *= 1 - 0.70 * pinch;
+      X *= 1 + 0.06 * pinch;                       // the tie-ear sticks out a little
+      // filled cloth: lumps, a slump to one side, creases running to the ties
+      const n = Math.sin(x * 7.3 + z * 3.1) * Math.sin(z * 5.9 - x * 2.3) * 0.045
+              + Math.sin(x * 19.0 + y * 7.0 + z * 13.0) * 0.012
+              + Math.sin(Math.atan2(y, z) * 9.0 + x * 4.0) * 0.018 * Math.pow(ax, 3);
+      const k = 1 + n;
+      p.setXYZ(i, X * 0.5 * k, Y * 0.5 * k, Z * 0.5 * k);
+    }
+    g.computeVertexNormals();
+    return g;
+  }
+
+  /* Bag slots from the Gemini bunker, in its own file frame (the centre of
+     its top course left out, so the sentry looks over the sill onto his near
+     ground instead of into the bags):
+     centre x, y, z and size along x, y, z. */
+  const BAG_SLOTS = [
+    [-0.88,0.11,-1.08,0.62,0.17,0.45],[-0.36,0.11,-1.12,0.61,0.16,0.47],[-1.86,0.11,-0.38,0.48,0.17,0.62],
+    [-1.92,0.23,-0.40,0.53,0.20,0.59],[-0.84,0.24,-1.10,0.56,0.19,0.41],[1.89,1.08,1.54,0.54,0.21,0.40],
+    [-1.04,1.08,1.56,0.56,0.20,0.35],[-0.51,1.08,1.55,0.56,0.20,0.37],[0,1.08,1.56,0.57,0.20,0.36],
+    [-1.88,1.09,1.54,0.58,0.21,0.39],[-1.40,1.09,1.55,0.57,0.20,0.38],[1.39,1.09,1.53,0.57,0.21,0.42],
+    [0.51,1.09,1.56,0.56,0.19,0.35],[1.03,1.09,1.55,0.56,0.19,0.37],
+    [-1.33,1.24,1.54,0.56,0.21,0.39],
+    [-1.80,1.25,1.53,0.57,0.21,0.42],[1.80,1.25,1.55,0.57,0.19,0.38],[1.33,1.25,1.55,0.58,0.19,0.39],
+    [-1.41,1.39,1.54,0.56,0.21,0.41],[1.88,1.39,1.56,0.58,0.21,0.37],[-1.86,1.40,1.55,0.59,0.20,0.38],
+    [1.41,1.40,1.55,0.57,0.21,0.38],[1.81,1.54,1.56,0.56,0.21,0.36],[-1.82,1.55,1.54,0.59,0.20,0.40],
+    [-1.34,1.55,1.54,0.57,0.21,0.39],[1.34,1.55,1.53,0.60,0.21,0.41],[-1.87,1.71,1.55,0.59,0.20,0.39],
+    [1.87,1.71,1.53,0.55,0.19,0.41],[-1.82,1.86,1.54,0.59,0.21,0.40],[1.83,1.87,1.54,0.56,0.20,0.39],
+    [-1.89,2.01,1.54,0.56,0.21,0.40],[1.88,2.01,1.55,0.57,0.21,0.39]];
+
+  function buildSandbags() {
+    const t = (f, r) => { const x = TL.load('tex/ph/' + f); x.wrapS = x.wrapT = THREE.RepeatWrapping;
+                          x.repeat.set(r[0], r[1]); x.anisotropy = 8; return x; };
+    const R = [4.6, 2.4];
+    const map = t('hessian_230_diff.jpg', R); map.encoding = THREE.sRGBEncoding;
+    const mat = new THREE.MeshPhongMaterial({
+      map, normalMap: t('hessian_230_nor.jpg', R), specular: 0x060504, shininess: 4,
+      color: new THREE.Color(0.36, 0.33, 0.28) });
+    mat.normalScale.set(1.6, 1.6);
+    const geo = sandbagGeo();
+    const n = BAG_SLOTS.length;
+    const im = new THREE.InstancedMesh(geo, mat, n);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(),
+          pos = new THREE.Vector3(), sc = new THREE.Vector3(), col = new THREE.Color();
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    BAG_SLOTS.forEach((b, i) => {
+      const long = b[3] >= b[5];
+      // lay each bag a touch fuller than the lump it replaces so the courses close up
+      sc.set((long ? b[3] : b[5]) * 1.06, b[4] * 1.18, (long ? b[5] : b[3]) * 1.04);
+      e.set((rnd() - 0.5) * 0.06, (long ? 0 : Math.PI / 2) + (rnd() - 0.5) * 0.12, (rnd() - 0.5) * 0.07);
+      q.setFromEuler(e);
+      pos.set(b[0], b[1], b[2]);
+      m.compose(pos, q, sc); im.setMatrixAt(i, m);
+      const v = 0.82 + rnd() * 0.30;                // new bags, sun-bleached bags, damp bags
+      col.setRGB(v, v * (0.96 + rnd() * 0.05), v * (0.90 + rnd() * 0.08));
+      im.setColorAt(i, col);
+    });
+    im.castShadow = true; im.receiveShadow = true;
+    World.__reg(im, 0.30);
+    return im;
+  }
+
   function buildMorcha() {
     const g = new THREE.Group();
     const concrete = new THREE.MeshPhongMaterial({
@@ -1106,7 +1392,7 @@ const World = (function () {
          field telephone, logbook, binoculars, ammo crate. Its slit faces +Z in
          the file; turned PI it faces downrange and its inner face lands
          exactly on FW. Plus the INSAS on the sill. */
-      const room = Assets.group('g_morcha');
+      const room = Assets.group('g_morcha', { skip: ['Hessian'] });
       room.rotation.y = Math.PI;
       room.position.set(0, FLOOR, 0);
       /* At night the inside of a morcha is near-black: nothing lights it but a
@@ -1115,12 +1401,19 @@ const World = (function () {
       room.traverse(m => {
         if (!m.isMesh) return;
         m.material = m.material.clone();
-        m.material.color.multiplyScalar(0.32);
+        m.material.color.multiplyScalar(/Telephone|Binocular/.test(m.name) ? 0.16 : 0.32);
         if (m.material.roughness !== undefined) m.material.roughness = 1.0;
+        if (m.material.metalness !== undefined) m.material.metalness = 0.0;
+        if (m.material.roughnessMap) m.material.roughnessMap = null;
+        if (m.material.metalnessMap) m.material.metalnessMap = null;
         m.geometry = m.geometry.clone(); m.geometry.computeVertexNormals();
         m.castShadow = true; m.receiveShadow = true; World.__reg(m, 0.30);
       });
       g.add(room);
+      /* Gemini laid out 35 bags; each was a 160-vertex lump. Keep its layout,
+         and put a properly made hessian bag in every slot: filled, flat-topped,
+         its ends gathered and tied, real jute weave in the light. */
+      room.add(buildSandbags());
       const rifle = Assets.group('g_insas');
       if (rifle) {
         rifle.rotation.y = Math.PI / 2 - 0.18;    // muzzle out over the parapet
@@ -1454,9 +1747,10 @@ const World = (function () {
       const amb  = new THREE.AmbientLight(0x1b2738, 0.105*GAIN); scene.add(amb);
       const hemi = new THREE.HemisphereLight(0x22304a, 0x0d0a05, 0.085*GAIN); scene.add(hemi);
       const moon = new THREE.DirectionalLight(0xaec4e8, 0.085*GAIN);
-      // the panorama's moon sits at bearing +35 deg, 35 deg up: light from there
-      moon.position.set(Math.sin(0.61)*Math.cos(0.61)*400, Math.sin(0.61)*400,
-                        -Math.cos(0.61)*Math.cos(0.61)*400);
+      // the moon rises at bearing +26 deg; light from a little above its disc so
+      // the ground still carries a half-moon's worth of light
+      moon.position.set(Math.sin(0.454)*Math.cos(0.38)*400, Math.sin(0.38)*400,
+                        -Math.cos(0.454)*Math.cos(0.38)*400);
       scene.add(moon);
       buildSky(); buildGround(); buildGrass(); buildFence();
       buildNallah(); buildTreeline(); buildRangersPosts();
@@ -1522,6 +1816,7 @@ const World = (function () {
       grassMat.uniforms.uMoon.value = moonI;
       skyMat.uniforms.uMoon.value   = moonI;
       stars.material.uniforms.uT.value = t;
+      if (World.__water) World.__water.material.uniforms.uT.value = t;
       if (motes) motes.material.uniforms.uT.value = t;
       const dense = THREE.MathUtils.clamp((fog-0.0016)/0.004, 0, 1);
       mist.forEach((m,i)=>{ m.material.opacity = 0.012 + dense*0.115;
