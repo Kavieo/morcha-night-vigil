@@ -254,3 +254,9 @@ Measured range, full 5-minute shift:
 |---|---|---|---|
 | Sentry does nothing | 4 | −600 | FAIL — BORDER BREACHED |
 | Sentry works it properly | 0 | +465 | PASS (mark: 200) |
+
+## Third-party assets
+- `models/rig/Soldier.glb` — rigged character from the three.js examples (Mixamo rig and animations).
+- `models/rig/Fox.glb` — glTF Sample Assets "Fox": model CC0 by PixelMannen; rigging and animation CC-BY 4.0 by @tomkranis; glTF conversion by @AsoboStudio and @scurest. Used as the stray dog / jackal.
+- `tex/ph/*` — Poly Haven CC0 textures (hessian_230, dry_ground_01, aerial_grass_rock).
+- `vendor/SkeletonUtils.js` — three.js r128 examples (MIT).

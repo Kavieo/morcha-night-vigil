@@ -102,7 +102,61 @@ const Contacts = (function () {
     return { group: g, parts };
   }
 
-  function bodyFor(cls) {
+  /* Clothing per class, and how much sky-fill keeps him a shape rather than
+     a hole (the moon is ahead of the post, so every front is in shadow). */
+  const DRESS = {
+    INFILTRATOR: { tint: [0.13, 0.13, 0.11], fill: 0.06 },   // dark drab, blacked-out
+    SMUGGLER:    { tint: [0.30, 0.25, 0.18], fill: 0.09 },   // brown shawl
+    CIVILIAN:    { tint: [0.62, 0.60, 0.55], fill: 0.12 },   // pale kurta
+    OWN_TROOPS:  { tint: [0.24, 0.27, 0.19], fill: 0.10 }    // olive
+  };
+
+  function heatSwap(root, v) {
+    root.traverse(m => {
+      if (!m.isMesh) return;
+      World.heatables.push(m);
+      m.userData.matNormal = m.material;
+      m.userData.matThermal = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(v, v, v*0.96), fog: true, skinning: !!m.isSkinnedMesh });
+    });
+  }
+
+  function slungRifle(h) {
+    /* The weapon, slung across the back: it is the bump on a crawling man's
+       silhouette that binoculars can resolve. */
+    const g = Assets.group('g_insas'); const sp = h.bones.Spine2;
+    if (!g || !sp) return;
+    h.model.updateMatrixWorld(true);
+    const mInv = new THREE.Matrix4().copy(h.model.matrixWorld).invert();
+    const boneRel = new THREE.Matrix4().multiplyMatrices(mInv, sp.matrixWorld);
+    // in the model frame (metres, facing -Z): across the back, muzzle up-left
+    const want = new THREE.Matrix4().compose(
+      new THREE.Vector3(0.0, 1.30, 0.17),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI/2, 0.85)),
+      new THREE.Vector3(0.95, 0.95, 0.95));
+    const local = new THREE.Matrix4().copy(boneRel).invert().multiply(want);
+    local.decompose(g.position, g.quaternion, g.scale);
+    g.traverse(m => { if (m.isMesh) { m.castShadow = true;
+      m.material = m.material.clone(); m.material.color.multiplyScalar(0.35); } });
+    sp.add(g);
+  }
+
+  function bodyFor(cls, type) {
+    /* Rigged, animated people and dog (see rigs.js). */
+    if (cls.stance !== 'QUAD' && Assets.rig('r_soldier')) {
+      const d = DRESS[type] || DRESS.CIVILIAN;
+      const h = Rigs.human({ tint: new THREE.Color(d.tint[0], d.tint[1], d.tint[2]), fill: d.fill });
+      if (h) {
+        if (cls.armed) slungRifle(h);
+        heatSwap(h.root, cls.heat);
+        h.root.userData.rig = h;
+        return h.root;
+      }
+    }
+    if (cls.label === 'STRAY DOG' && Assets.rig('r_fox')) {
+      const dg = Rigs.dog();
+      if (dg) { heatSwap(dg.root, cls.heat); dg.root.userData.dog = dg; return dg.root; }
+    }
     /* Gemini 4 Argon animals: a real zebu cow, nilgai and stray dog. */
     const GM = { 'CATTLE': 'g_cow', 'NILGAI': 'g_nilgai', 'STRAY DOG': 'g_dog' }[cls.label];
     if (GM && Assets.has(GM)) {
@@ -190,7 +244,8 @@ const Contacts = (function () {
       eyesOn:0, everSeen:false, resolvedAt:null, verdict:null,
       cueMissedLog: []
     };
-    c.mesh = bodyFor(cls);
+    c.mesh = bodyFor(cls, spec.type);
+    c.heading = 0; c.tac = null; c.wp = null; c.lastX = c.x; c.lastZ = c.z;
     c.mesh.position.set(c.x, World.heightAt(c.x, c.z), c.z);
     scene.add(c.mesh);
     list.push(c);
@@ -210,6 +265,124 @@ const Contacts = (function () {
       inView:  ang < halfFov * 0.92 && dist < optic.range,
       onCross: ang < THREE.MathUtils.degToRad(Math.min(3.2, optic.fov * 0.18)) && dist < optic.range
     };
+  }
+
+  /* ========================================================================
+     HOW THEY MOVE
+     A real crossing is not a man walking at the wire. Far out he moves
+     crouched and stops to look. Once inside crawling range he goes to the
+     ground and works from one stand of grass to the next: crawl, freeze, a
+     short crouched dash across an open patch when he thinks nobody is looking,
+     sometimes rising to a knee for a few seconds to check his line — the
+     moment a sentry can catch him. Every man rolls his own rhythm.
+     ======================================================================== */
+  const rr = (a, b) => a + Math.random() * (b - a);
+
+  function pickTactic(c, watched) {
+    const far  = c.z < W.zeroLineZ - 20;
+    const strip = c.z > W.fenceZ - 26;
+    const k = Math.random();
+    let mode, t, sp;
+    if (c.type === 'SMUGGLER') {
+      if (strip)            { mode = 'RUN';    t = rr(3, 6);   sp = 4.0; }
+      else if (k < 0.55)    { mode = 'CROUCH'; t = rr(4, 9);   sp = 1.9; }
+      else if (k < 0.75)    { mode = 'KNEEL';  t = rr(1.5, 4); sp = 0; }
+      else                  { mode = 'FLAT';   t = rr(3, 8);   sp = 0; }
+    } else if (strip)       { mode = Math.random() < 0.8 ? 'RUN' : 'CRAWL'; t = rr(3, 7); sp = mode === 'RUN' ? 4.3 : 0.9; }
+    else if (far) {
+      if (k < 0.72)         { mode = 'CROUCH'; t = rr(5, 12);  sp = 2.0; }
+      else if (k < 0.88)    { mode = 'KNEEL';  t = rr(1.5, 4); sp = 0; }
+      else                  { mode = 'FLAT';   t = rr(2, 5);   sp = 0; }
+    } else {
+      /* (crawl and dash rates are compressed for a five-minute shift) */
+      if (k < 0.46)         { mode = 'CRAWL';  t = rr(4, 10);  sp = rr(1.15, 1.55); }
+      else if (k < 0.66)    { mode = 'FLAT';   t = rr(2, 8);   sp = 0; }
+      else if (k < 0.89 && !watched) { mode = 'CROUCH'; t = rr(3, 6); sp = 2.6; }      // a dash between stands
+      else                  { mode = 'KNEEL';  t = rr(1.5, 3.0); sp = 0; }             // a look over the grass
+    }
+    c.tac = { mode, t, sp: sp * (c.cls.speed / 2.95) };
+  }
+
+  function nextWaypoint(c) {
+    /* Work toward the crossing point, choosing each bound for cover: try a
+       few spots ahead and take the one in the thickest grass, with some luck. */
+    const gx = c.targetX !== null ? c.targetX : c.x;
+    let best = null, bs = -1e9;
+    for (let i = 0; i < 6; i++) {
+      const fwd = rr(9, 26);
+      const toward = THREE.MathUtils.clamp((gx - c.x) * 0.35, -14, 14);
+      const x = c.x + toward + rr(-14, 14);
+      const z = Math.min(c.z + fwd, W.fenceZ + 34);
+      const cover = World.__gPatch ? World.__gPatch(x, z) : 0.5;
+      const score = cover * 2.0 - Math.abs(gx - x) * 0.012 + Math.random() * 0.5;
+      if (score > bs) { bs = score; best = { x, z }; }
+    }
+    if (c.z > W.fenceZ - 30) best = { x: gx + rr(-2, 2), z: W.fenceZ + 34 };   // last strip: straight at the gap
+    c.wp = best;
+  }
+
+  function moveContact(c, dt, tNow, obs, env) {
+    const hostile = c.cls.hostile && c.route !== 'PATROL';
+    if (hostile) {
+      const watched = obs.inView && obs.dist < 420 && !env.blinded;
+      if (!c.tac || (c.tac.t -= dt) <= 0) pickTactic(c, watched);
+      if (!c.wp || Math.hypot(c.wp.x - c.x, c.wp.z - c.z) < 2.5) nextWaypoint(c);
+      const sp = c.tac.sp * (c.state === STATE.CROSS && c.tac.mode === 'RUN' ? 1.0 : 1.0);
+      if (sp > 0) {
+        const dx = c.wp.x - c.x, dz = c.wp.z - c.z, L = Math.hypot(dx, dz) || 1;
+        c.x += dx / L * sp * dt; c.z += dz / L * sp * dt;
+      }
+      return;
+    }
+    // everyone else: the old steady rhythm, with a wander
+    c.moveT -= dt;
+    const burstOn = c.moveT > 0;
+    if (c.moveT < -(1.2 + Math.random()*2.5)) c.moveT = 2 + Math.random()*4;
+    if (!burstOn) return;
+    let sp = c.cls.speed;
+    if (c.type === 'NILGAI' && Math.random() < dt*0.4) sp *= 2.2;
+    const goalX = c.targetX !== null ? c.targetX : c.x + Math.sin(tNow*0.2 + c.id)*30;
+    const goalZ = c.route === 'PATROL' ? W.patrolZ
+                : c.targetX !== null   ? W.fenceZ + 34
+                :                        c.z + 6 + Math.sin(tNow*0.13 + c.id*3.1)*10;
+    const dxg = goalX - c.x, dzg = goalZ - c.z;
+    const L = Math.hypot(dxg, dzg) || 1;
+    c.x += (dxg/L) * sp * dt;
+    c.z += (dzg/L) * sp * dt;
+  }
+
+  function animateContact(c, dt) {
+    const vx = (c.x - c.lastX) / Math.max(dt, 1e-3), vz = (c.z - c.lastZ) / Math.max(dt, 1e-3);
+    c.lastX = c.x; c.lastZ = c.z;
+    const speed = Math.hypot(vx, vz);
+    if (speed > 0.05) {
+      const want = Math.atan2(vx, vz);
+      let d = want - c.heading; d = Math.atan2(Math.sin(d), Math.cos(d));
+      c.heading += d * Math.min(1, dt * 3.0);
+    }
+    c.mesh.rotation.y = c.heading;
+    const rig = c.mesh.userData.rig, dog = c.mesh.userData.dog;
+    if (rig) {
+      let mode;
+      if (c.cls.hostile && c.route !== 'PATROL') {
+        mode = c.tac ? c.tac.mode : 'CROUCH';
+        if (c.state === STATE.FREEZE) mode = (mode === 'KNEEL' || mode === 'CROUCH') ? 'KNEEL' : 'FLAT';
+        if (c.state === STATE.HALTED) mode = 'KNEEL';
+        if ((mode === 'CRAWL' || mode === 'CROUCH' || mode === 'RUN') && speed < 0.05) mode = mode === 'CRAWL' ? 'FLAT' : 'KNEEL';
+      } else {
+        mode = c.state === STATE.HALTED ? 'STAND' : speed > 0.05 ? 'WALK' : 'STAND';
+      }
+      Rigs.pose(rig, mode, dt, speed);
+    } else if (dog) {
+      Rigs.poseDog(dog, dt, speed);
+    } else if (c.cls.stance === 'QUAD') {
+      // the Gemini cattle and nilgai: a plodding head-and-body bob, and
+      // the head goes down to graze when they stop
+      c.gait = (c.gait || Math.random() * 6) + dt * (0.8 + speed * 2.2);
+      c.mesh.position.y += speed > 0.05 ? Math.abs(Math.sin(c.gait * 2.0)) * 0.04 : 0;
+      c.mesh.rotation.z = speed > 0.05 ? Math.sin(c.gait * 2.0) * 0.025 : 0;
+      c.mesh.rotation.x = speed > 0.05 ? 0 : 0.05 + Math.sin(c.gait * 0.3) * 0.03;
+    }
   }
 
   function update(dt, tNow, cam, optic, env) {
@@ -268,37 +441,14 @@ const Contacts = (function () {
       else {
         c.frozenFor = 0;
         c.state = (c.z > W.fenceZ - 25) ? STATE.CROSS : STATE.APPROACH;
-        // bursts: move, then go still — the real rhythm of a night crawl
-        c.moveT -= dt;
-        const burstOn = c.moveT > 0;
-        if (c.moveT < -(1.2 + Math.random()*2.5)) c.moveT = 2 + Math.random()*4;
-
-        if (burstOn) {
-          let sp = c.cls.speed;
-          if (c.state === STATE.CROSS && c.cls.hostile) sp *= 2.3;    // final dash at the wire
-          if (c.type === 'NILGAI' && Math.random() < dt*0.4) sp *= 2.2; // bolts
-          const goalX = c.targetX !== null ? c.targetX : c.x + Math.sin(tNow*0.2 + c.id)*30;
-          const goalZ = c.route === 'PATROL' ? W.patrolZ
-                      /* PAST the breach line, not up to it. This was fenceZ+12
-                         while a breach is declared at fenceZ+14, so a crawler
-                         walked to his goal and stopped two metres short of the
-                         wire, forever. Every breach in the exercise was
-                         unreachable and a sentry who did nothing at all still
-                         scored no breaches. */
-                      : c.targetX !== null   ? W.fenceZ + 34
-                      :                        c.z + 6;
-          const dxg = goalX - c.x, dzg = goalZ - c.z;
-          const L = Math.hypot(dxg, dzg) || 1;
-          c.x += (dxg/L) * sp * dt;
-          c.z += (dzg/L) * sp * dt;
-        }
+        moveContact(c, dt, tNow, obs, env);
       }
 
       /* Follow the ground. A man who drops into a fold or the nallah is in
          genuine dead ground — which is exactly the lane a trainee must learn
          to watch, and it now happens for real rather than by assertion. */
       c.mesh.position.set(c.x, World.heightAt(c.x, c.z), c.z);
-      c.mesh.rotation.y = Math.atan2(c.targetX !== null ? (c.targetX - c.x) : 0, 8);
+      animateContact(c, dt);
 
       /* ---- grass betrays anything in it ----------------------------------
          Moving: wide radius, violent sway across the wind — obvious if you are

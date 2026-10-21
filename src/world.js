@@ -419,6 +419,13 @@ const World = (function () {
     }
   }
 
+  /* clumped, not sprinkled: real sarkanda grows in stands with open ground
+     between — cover a man can move from one to the next */
+  function gPatch(x, z) {
+    return 0.5 + 0.30*Math.sin(x*0.043 + 1.7)*Math.cos(z*0.051 - 0.4)
+               + 0.20*Math.sin(x*0.11 - z*0.07 + 2.3);
+  }
+
   /* ---------- elephant grass: the detection cue lives here ------------------ */
   function buildGrass() {
     const n = W.grassTufts;
@@ -442,7 +449,7 @@ const World = (function () {
       let tall = false;
       if (!near && Math.random()<0.18) { x = W.culvertX + (Math.random()-0.5)*90;  // elephant grass on the nallah
                                          z = W.zeroLineZ + Math.random()*190; tall = true; }
-      if (!near && Math.random()<0.09) tall = true;      // scattered standing patches
+      if (!near && gPatch(x, z) > 0.62) tall = true;     // standing patches, in clumps
       // cleared strip on the far side of the wire — he loses his cover for the last 25 m
       if (!near && z > W.fenceZ - 26) continue;
       // the water channel itself stays open: reeds on the banks, not in the stream
@@ -452,12 +459,15 @@ const World = (function () {
          is only partly hidden by it. The TALL patches (the nallah, and a few
          standing stands of elephant grass) are the ones that swallow him, and
          those are precisely the lanes a trainee must learn to watch.        */
+      /* Punjab border scrub in the season: knee-to-waist grass on the open
+         ground, sarkanda over head height in the patches. A crouching man
+         disappears in it; a crawling one is invisible unless it moves. */
       const h  = near ? (0.16+Math.random()*0.22)
-               : tall ? (1.65+Math.random()*1.25)
-               :        (0.58+Math.random()*0.52);
+               : tall ? (2.10+Math.random()*1.40)
+               :        (0.80+Math.random()*0.80);
       const wd = near ? (0.18+Math.random()*0.2)
-               : tall ? (0.55+Math.random()*0.55)
-               :        (0.38+Math.random()*0.40);
+               : tall ? (0.70+Math.random()*0.70)
+               :        (0.50+Math.random()*0.55);
       const rot= Math.random()*Math.PI;
       const cr=Math.cos(rot), sr=Math.sin(rot);
       const corner=[[-0.5,0],[0.5,0],[0.5,1],[-0.5,1]], uvs=[[0,0],[1,0],[1,1],[0,1]];
@@ -1752,6 +1762,7 @@ const World = (function () {
       moon.position.set(Math.sin(0.454)*Math.cos(0.38)*400, Math.sin(0.38)*400,
                         -Math.cos(0.454)*Math.cos(0.38)*400);
       scene.add(moon);
+      World.__gPatch = gPatch;
       buildSky(); buildGround(); buildGrass(); buildFence();
       buildNallah(); buildTreeline(); buildRangersPosts();
       buildMist(); interiorLights = buildMorcha(); buildMotes();

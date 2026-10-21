@@ -30,6 +30,12 @@ const Assets = (function () {
     bush:     'models/wild_rooibos_bush/wild_rooibos_bush_1k.gltf'
   };
 
+  /* Rigged, animated characters — kept whole (skeleton + clips), cloned per use. */
+  const RIGS = {
+    r_soldier: 'models/rig/Soldier.glb',
+    r_fox:     'models/rig/Fox.glb'
+  };
+
   const store = {};          // name -> { geo, mat, size }
   let onProgress = null;
 
@@ -102,10 +108,15 @@ const Assets = (function () {
       const loader = new THREE.GLTFLoader();
       return Promise.all([
         ...Object.keys(MODELS).map(k => loadOne(loader, k, MODELS[k], false)),
-        ...Object.keys(GEMINI).map(k => loadOne(loader, k, GEMINI[k], true))
+        ...Object.keys(GEMINI).map(k => loadOne(loader, k, GEMINI[k], true)),
+        ...Object.keys(RIGS).map(k => new Promise(resolve => loader.load(RIGS[k], g => {
+          store[k] = { scene: g.scene, animations: g.animations };
+          if (onProgress) onProgress(k); resolve();
+        }, undefined, () => { if (onProgress) onProgress(k); resolve(); })))
       ]);
     },
-    count: () => Object.keys(MODELS).length + Object.keys(GEMINI).length,
+    count: () => Object.keys(MODELS).length + Object.keys(GEMINI).length + Object.keys(RIGS).length,
+    rig: name => store[name] && store[name].animations ? store[name] : null,
 
     /* Every part of a multi-part model as one Group. opts.skip: part names to
        leave out; opts.mat(part) may return a replacement material. */

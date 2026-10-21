@@ -172,7 +172,7 @@
 
     // the slice the trainee is actually looking at
     if (S) {
-      const half = ({EYE:22, BINO:3.5, THERMAL:5, NVG:13})[S.optic] || 20;
+      const half = ({EYE:27, BINO:3.5, THERMAL:5, NVG:13})[S.optic] || 20;
       g.fillStyle = 'rgba(127,224,164,0.10)';
       g.beginPath(); g.moveTo(ox, oy);
       for (let b = S.bearing - half; b <= S.bearing + half; b += 1) {

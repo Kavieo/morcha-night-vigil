@@ -302,12 +302,13 @@ body.trainee #cue{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto
 
 <script src="vendor/three.min.js"></script>
 <script src="vendor/GLTFLoader.js"></script>
+<script src="vendor/SkeletonUtils.js"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script>
 /* Loaded with a cache-bust so an instructor who edits src/config.js and reloads
    always gets their own doctrine, never a stale copy out of the browser cache. */
 (function () {
-  const files = ['config','link','assets','world','entities','optics','hud','sim'];
+  const files = ['config','link','assets','rigs','world','entities','optics','hud','sim'];
   // file:// does not accept a query string on a script path, and offline
   // double-click-to-run matters more than dev convenience. Bust only on http.
   const v = location.protocol.indexOf('http') === 0 ? ('?v=' + Date.now()) : '';

@@ -3,7 +3,7 @@
 const Optics = (function () {
 
   const MODES = [
-    { id:'EYE',     name:'WIDE WATCH (naked eye)', fov:44, range:230, key:'1',
+    { id:'EYE',     name:'WIDE WATCH (naked eye)', fov:54, range:230, key:'1',
       note:'The whole watch. He scans this with his own eyes — no man past 150 m.' },
     { id:'BINO',    name:'BINOCULAR 7x50',   fov: 7, range:700, key:'2',
       note:'Detail and weapon ID — but you are blind outside 7 degrees.' },
@@ -16,6 +16,9 @@ const Optics = (function () {
   let cam, rt, quad, quadScene, quadCam, uni, R = null;
   let brightMat, blurMat, downMat, blurQuad, blurScene;
   let mips = [], temps = [];
+  let taaA, taaB, taaMat, taaFrame = 0, taaOK = false;
+  const prevVP = new THREE.Matrix4(), curVP = new THREE.Matrix4(), tmpM = new THREE.Matrix4();
+  const halton = (i, b) => { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; };
   const MIPS = 4;            // glow levels: tight core -> wide soft halo
   let MSAA = false, PR = 1;
   let SS = 1.45;              // supersample factor — fallback path only
@@ -69,6 +72,43 @@ const Optics = (function () {
     }
 
     const VQ = 'varying vec2 vUv; void main(){vUv=uv; gl_Position=vec4(position.xy,0.0,1.0);}';
+
+    /* TEMPORAL ANTI-ALIASING. 4x MSAA smooths an edge inside one frame, but a
+       wire, a grass blade or a star thinner than a pixel still lands on a
+       different pixel each frame and CRAWLS — the shimmer and "pixelated"
+       look. The cure is to jitter the camera by a sub-pixel amount every frame
+       and accumulate the frames. The sentry's camera only ever ROTATES about a
+       fixed point, so the previous frame can be reprojected exactly with one
+       matrix and no depth buffer: everything stays sharp, nothing smears.
+       Neighbourhood clamping stops moving things (grass in the wind, a man)
+       from leaving ghosts. */
+    taaA = new THREE.WebGLRenderTarget(W0, H0, sceneOpt);
+    taaB = new THREE.WebGLRenderTarget(W0, H0, sceneOpt);
+    taaMat = new THREE.ShaderMaterial({
+      uniforms: { uCur:{value:null}, uHist:{value:null}, uReproj:{value:new THREE.Matrix4()},
+                  uTexel:{value:new THREE.Vector2(1/W0, 1/H0)}, uBlend:{value:1.0} },
+      depthTest:false, depthWrite:false, vertexShader: VQ,
+      fragmentShader:`uniform sampler2D uCur, uHist; uniform mat4 uReproj; uniform vec2 uTexel;
+        uniform float uBlend; varying vec2 vUv;
+        vec3 tm(vec3 c){ return c / (1.0 + max(c.r, max(c.g, c.b))); }     // blend in a tamed range
+        vec3 itm(vec3 c){ return c / max(1e-4, 1.0 - max(c.r, max(c.g, c.b))); }
+        void main(){
+          vec3 cur = tm(texture2D(uCur, vUv).rgb);
+          vec3 m1 = vec3(0.0), m2 = vec3(0.0);
+          for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+            vec3 s = tm(texture2D(uCur, vUv + vec2(float(x), float(y)) * uTexel).rgb);
+            m1 += s; m2 += s * s;
+          }
+          m1 /= 9.0; m2 /= 9.0;
+          vec3 sd = sqrt(max(m2 - m1 * m1, 0.0));
+          vec3 lo = m1 - sd * 1.35, hi = m1 + sd * 1.35;
+          vec4 pc = uReproj * vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
+          vec2 puv = pc.xy / pc.w * 0.5 + 0.5;
+          float valid = step(0.0, puv.x) * step(puv.x, 1.0) * step(0.0, puv.y) * step(puv.y, 1.0);
+          vec3 hist = clamp(tm(texture2D(uHist, puv).rgb), lo, hi);
+          float a = mix(1.0, uBlend, valid);
+          gl_FragColor = vec4(itm(mix(hist, cur, a)), 1.0);
+        }` });
     /* Bright pass. Output stays in SCENE units: the composite applies exposure
        once. It used to apply it here AND there, which scaled the glow by
        exposure squared — about 0.3% of what was intended. */
@@ -148,7 +188,7 @@ const Optics = (function () {
                wire and the scrub edges that a resolved, tonemapped frame softens */
             vec3 nb = ( texture2D(uTex, uv + vec2(uTexel.x, 0.0)).rgb + texture2D(uTex, uv - vec2(uTexel.x, 0.0)).rgb
                       + texture2D(uTex, uv + vec2(0.0, uTexel.y)).rgb + texture2D(uTex, uv - vec2(0.0, uTexel.y)).rgb ) * 0.25;
-            c = max(c + (c - nb) * 0.55, vec3(0.0));
+            c = max(c + (c - nb) * 0.45, vec3(0.0));
           }
           /* glare: tight core + progressively wider halo */
           vec3 bl = texture2D(uB0,uv).rgb*uBloomW.x + texture2D(uB1,uv).rgb*uBloomW.y
@@ -303,9 +343,39 @@ const Optics = (function () {
       uni.uBloom.value = bloom; uni.uFlash.value = flash; uni.uFatigue.value = fatigue;
     },
     render(renderer, scene) {
+      // un-jittered view-projection for this frame (for next frame's reprojection)
+      cam.updateMatrixWorld();
+      cam.updateProjectionMatrix();
+      curVP.multiplyMatrices(cam.projectionMatrix, tmpM.copy(cam.matrixWorld).invert());
+      // sub-pixel jitter, Halton(2,3) over 8 frames
+      taaFrame = (taaFrame + 1) % 8;
+      const jx = (halton(taaFrame + 1, 2) - 0.5) * 2 / rt.width;
+      const jy = (halton(taaFrame + 1, 3) - 0.5) * 2 / rt.height;
+      cam.projectionMatrix.elements[8] += jx;
+      cam.projectionMatrix.elements[9] += jy;
+
       renderer.setRenderTarget(rt);
       renderer.clear();
       renderer.render(scene, cam);
+      cam.updateProjectionMatrix();                 // drop the jitter again
+
+      // reproject: this frame's NDC -> last frame's NDC (rotation-only camera)
+      taaMat.uniforms.uReproj.value.multiplyMatrices(prevVP, tmpM.copy(curVP).invert());
+      taaMat.uniforms.uCur.value = rt.texture;
+      taaMat.uniforms.uHist.value = taaA.texture;
+      taaMat.uniforms.uBlend.value = taaOK ? 0.12 : 1.0;
+      if (!blurScene) {
+        blurScene = new THREE.Scene();
+        blurQuad = new THREE.Mesh(new THREE.PlaneGeometry(2,2), brightMat);
+        blurQuad.frustumCulled = false;
+        blurScene.add(blurQuad);
+      }
+      blurQuad.material = taaMat;
+      renderer.setRenderTarget(taaB); renderer.clear(); renderer.render(blurScene, quadCam);
+      { const t = taaA; taaA = taaB; taaB = t; }
+      taaOK = true;
+      prevVP.copy(curVP);
+      uni.uTex.value = taaA.texture;
 
       if (!blurScene) {
         blurScene = new THREE.Scene();
@@ -324,7 +394,7 @@ const Optics = (function () {
         blurMat.uniforms.uTex.value = m.texture;  blurMat.uniforms.uDir.value.set(1,0); pass(blurMat, tp);
         blurMat.uniforms.uTex.value = tp.texture; blurMat.uniforms.uDir.value.set(0,1); pass(blurMat, m);
       };
-      brightMat.uniforms.uTex.value = rt.texture;
+      brightMat.uniforms.uTex.value = taaA.texture;
       pass(brightMat, mips[0]); blur(0);
       for (let k = 1; k < MIPS; k++) {
         downMat.uniforms.uTex.value = mips[k-1].texture;
@@ -340,6 +410,8 @@ const Optics = (function () {
       PR = R ? R.getPixelRatio() : PR;
       const W0 = Math.round(w*PR*SS), H0 = Math.round(h*PR*SS);
       rt.setSize(W0, H0);
+      taaA.setSize(W0, H0); taaB.setSize(W0, H0); taaOK = false;
+      taaMat.uniforms.uTexel.value.set(1/W0, 1/H0);
       uni.uTexel.value.set(1/W0, 1/H0);
       for (let k = 0; k < MIPS; k++) {
         const bw = Math.max(2, Math.round(w*PR / Math.pow(2, k+1)));
