@@ -1432,6 +1432,7 @@ const World = (function () {
         g.add(rifle);
       }
       scene.add(g);
+      World.morchaGroup = g;          // what can block the sentry's view
       const red = new THREE.PointLight(0xff2a12, 0.12*GAIN, 4.6, 2);
       red.position.set(0.58, SILL+0.30, FW-0.05); scene.add(red);
       const spill = new THREE.PointLight(0xff9a4a, 0.26*GAIN, 11.0, 2);

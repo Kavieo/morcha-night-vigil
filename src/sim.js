@@ -6,7 +6,7 @@ const Sim = (function () {
 
   let renderer, scene, cam, clock;
   let t = 0, running = false, paused = false, ended = false;
-  let waveIdx = 0, degIdx = -1;
+  let waveIdx = 0, degIdx = -1, waves = null;
   let score = 0, fatigue = 0, coi = false, breaches = 0, apprehended = 0, terminal = null;
   let selected = null;
   let events = [], arcTrace = [], missedCues = [];
@@ -89,9 +89,9 @@ function tryLock(el) {
     selected = c;
     if (c.designatedT === t) {
       let pts, how;
-      if (c.z < W.zeroLineZ)            { pts = S.detectionExcellent; how='beyond the zero line'; }
-      else if (c.z < W.fenceZ - 45)     { pts = S.detectionGood;      how='in no-man\'s land'; }
-      else                              { pts = S.detectionLate;      how='already at the fence'; }
+      /* Same points wherever he is picked up — a detection is a detection. */
+      pts = S.detectionExcellent;
+      how = c.z < W.zeroLineZ ? 'beyond the zero line' : c.z < W.fenceZ - 45 ? "in no-man's land" : 'at the fence';
       Audio.ok();
       log('CONTACT', 'Contact ' + c.id + ' designated ' + how + ' — ' + c.reportedGrid, pts);
     }
@@ -101,11 +101,74 @@ function tryLock(el) {
   /* What could a trained eye honestly have picked up at this instant? The
      console shows the instructor exactly this list, so his verification is
      against the ground truth and not his memory. */
+  /* ---- what the sentry can ACTUALLY see -----------------------------------
+     In his picture AND not behind the morcha's own walls and sandbags. A
+     contact hidden by the parapet is not something he could have reported,
+     so it is never offered, boxed or counted. */
+  const visRay = new THREE.Raycaster(), visV = new THREE.Vector3(), visD = new THREE.Vector3();
+  function seenAt(x, y, z) {
+    const cam = Optics.camera(); if (!cam) return false;
+    visV.set(x, y, z).project(cam);
+    if (visV.z > 1 || Math.abs(visV.x) > 0.97 || Math.abs(visV.y) > 0.97) return false;
+    const g = World.morchaGroup; if (!g) return true;
+    visD.set(x - cam.position.x, y - cam.position.y, z - cam.position.z);
+    const L = visD.length(); visD.normalize();
+    visRay.set(cam.position, visD); visRay.far = L;
+    return visRay.intersectObject(g, true).length === 0;
+  }
+  function contactSeen(c) {
+    const gy = World.heightAt(c.x, c.z);
+    // any of feet, middle or head showing over the parapet counts
+    return seenAt(c.x, gy + 1.0, c.z) || seenAt(c.x, gy + 0.4, c.z);
+  }
+
+  /* The open slit, as bearings: scanned once per shift against the real walls,
+     so nothing is ever placed where the sandbags hide it. */
+  function openArc() {
+    let lo = 0, hi = 0;
+    for (let b = 0; b <= 60; b++) { const r = THREE.MathUtils.degToRad(b);
+      if (seenAt(Math.sin(r) * 330, 1.0, -Math.cos(r) * 330)) hi = b; else break; }
+    for (let b = 0; b <= 60; b++) { const r = THREE.MathUtils.degToRad(-b);
+      if (seenAt(Math.sin(r) * 330, 1.0, -Math.cos(r) * 330)) lo = -b; else break; }
+    return { lo: lo + 3, hi: hi - 3 };          // keep a margin off the cheeks
+  }
+
+  /* A fresh night every shift: the doctrine's mix and pace, but each contact
+     enters at a random point inside the open arc — straight down the middle as
+     often as on a flank — on a random route, a few seconds early or late. */
+  function randomWaves() {
+    const arc = openArc();
+    const W2 = DOCTRINE.waves.map(w => {
+      const v = Object.assign({}, w);
+      v.t = Math.max(2, w.t + (Math.random() - 0.5) * 14);
+      if (w.route === 'PATROL') return v;
+      const b = THREE.MathUtils.degToRad(arc.lo + Math.random() * (arc.hi - arc.lo));
+      v.x = Math.tan(b) * 340;
+      const cls = DOCTRINE.classes[w.type];
+      if (cls && cls.hostile && !w.decoy) {
+        const k = Math.random();
+        v.route = k < 0.5 ? 'STRAIGHT' : k < 0.8 ? 'FENCE_GAP' : 'CULVERT';
+        // a fence gap or culvert outside the open arc is no use to the exercise
+        if (v.route === 'CULVERT') {
+          const cb = THREE.MathUtils.radToDeg(Math.atan2(W.culvertX, -W.fenceZ));
+          if (cb < arc.lo || cb > arc.hi) v.route = 'STRAIGHT';
+        }
+        if (v.route === 'FENCE_GAP') {
+          const ok = World.floodlights.some(f => f.dead &&
+            THREE.MathUtils.radToDeg(Math.atan2(f.x, -W.fenceZ)) > arc.lo &&
+            THREE.MathUtils.radToDeg(Math.atan2(f.x, -W.fenceZ)) < arc.hi);
+          if (!ok) v.route = 'STRAIGHT';
+        }
+      }
+      return v;
+    });
+    return W2.sort((a, b) => a.t - b.t);
+  }
+
   function detectableNow() {
     return Contacts.active().filter(c => {
       const d = Math.hypot(c.x, c.z);
-      const brg = THREE.MathUtils.radToDeg(Math.atan2(c.x, -c.z));
-      return d < 620 && Math.abs(brg) <= DOCTRINE.world.arcLimit + 2 && c.z < W.fenceZ + 20;
+      return d < 620 && c.z < W.fenceZ + 20 && contactSeen(c);
     }).map(c => ({
       id: c.id, type: c.cls.label, hostile: !!c.cls.hostile, own: !!c.cls.own,
       bearing: +THREE.MathUtils.radToDeg(Math.atan2(c.x, -c.z)).toFixed(1),
@@ -152,9 +215,10 @@ function tryLock(el) {
       c.designated = true; c.designatedT = cl.t; c.designatedZ = c.z;
       c.reportedGrid = World.gridRef(c.x, c.z);
       let pts, how;
-      if (c.designatedZ < W.zeroLineZ)        { pts = S.detectionExcellent; how = 'beyond the zero line'; }
-      else if (c.designatedZ < W.fenceZ - 45) { pts = S.detectionGood;      how = "in no-man's land"; }
-      else                                    { pts = S.detectionLate;      how = 'already at the fence'; }
+      /* Same points wherever he is picked up — a detection is a detection. */
+      pts = S.detectionExcellent;
+      how = c.designatedZ < W.zeroLineZ ? 'beyond the zero line'
+          : c.designatedZ < W.fenceZ - 45 ? "in no-man's land" : 'at the fence';
       log('VERIFY', 'Instructor confirms: ' + c.cls.label + ' ' + how + ' — ' +
           c.reportedGrid + '. Picked up at ' + clk(cl.t) + '.', pts);
     } else {
@@ -455,8 +519,9 @@ function tryLock(el) {
     t += dt;
 
     /* --- scenario --- */
-    while (waveIdx < DOCTRINE.waves.length && DOCTRINE.waves[waveIdx].t <= t) {
-      const c = Contacts.spawn(DOCTRINE.waves[waveIdx], t); waveIdx++;
+    if (!waves) waves = randomWaves();
+    while (waveIdx < waves.length && waves[waveIdx].t <= t) {
+      const c = Contacts.spawn(waves[waveIdx], t); waveIdx++;
       if (c.decoy) log('SOUND', 'Movement and voices heard to the right flank.', 0);
     }
     /* --- degradation --- */
@@ -628,6 +693,7 @@ function tryLock(el) {
 
   /* Where a contact lands on that picture, in 0..1 of the frame. */
   function onScreenAt(c) {
+    if (!contactSeen(c)) return null;               // behind the parapet: not boxed
     const cam = Optics.camera();
     const h = c.cls.stance === 'PRONE' ? 0.35 : c.cls.stance === 'QUAD' ? 0.9 : 1.1;
     const v = new THREE.Vector3(c.x, World.heightAt(c.x, c.z) + h, c.z).project(cam);

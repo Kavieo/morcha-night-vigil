@@ -220,9 +220,13 @@ const Contacts = (function () {
   function crossingPoint(route, spec) {
     if (route === 'PATROL') return spec.x > 0 ? -460 : 460;     // walks the frontage
     if (route === 'CULVERT') return W.culvertX;
+    if (route === 'STRAIGHT') return spec.x + (Math.random() - 0.5) * 30;   // straight in, at the post
     if (route === 'FENCE_GAP') {
+      // the dark gap nearest where he starts — not one far off on a flank
       const dead = World.floodlights.filter(f => f.dead);
-      return dead.length ? dead[(Math.random()*dead.length)|0].x : 0;
+      if (!dead.length) return spec.x;
+      dead.sort((a, b) => Math.abs(a.x - spec.x) - Math.abs(b.x - spec.x));
+      return dead[0].x;
     }
     return null;                         // OPEN — never crosses
   }
