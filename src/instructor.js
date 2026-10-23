@@ -284,10 +284,10 @@
     const pc = S && S.pendingClaim;
     alertBanner(pc);
     if (!pc) {
-      box.className = ''; box.querySelector('h3').textContent = 'Step 1 · Wait for his report';
+      box.className = 'card'; box.querySelector('h3').textContent = 'Wait for his report';
       setHTML(opts, ''); return;
     }
-    box.className = 'live';
+    box.className = 'card live';
     box.querySelector('h3').textContent = 'He reported at ' + clk(pc.t) + ' — which one is he pointing at?';
     if (!pc.options.length) {
       setHTML(opts, '<div class="opt"><b>Nothing was out there.</b>' +

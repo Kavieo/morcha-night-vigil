@@ -138,10 +138,14 @@ function tryLock(el) {
      often as on a flank — on a random route, a few seconds early or late. */
   function randomWaves() {
     const arc = openArc();
+    Contacts.setArc(arc);
     const W2 = DOCTRINE.waves.map(w => {
       const v = Object.assign({}, w);
       v.t = Math.max(2, w.t + (Math.random() - 0.5) * 14);
-      if (w.route === 'PATROL') return v;
+      if (w.route === 'PATROL') {           // enters at one edge of the slit, walks across
+        v.x = Math.tan(THREE.MathUtils.degToRad(w.x < 0 ? arc.lo : arc.hi)) * -W.patrolZ;
+        return v;
+      }
       const b = THREE.MathUtils.degToRad(arc.lo + Math.random() * (arc.hi - arc.lo));
       v.x = Math.tan(b) * 340;
       const cls = DOCTRINE.classes[w.type];
@@ -221,6 +225,9 @@ function tryLock(el) {
           : c.designatedZ < W.fenceZ - 45 ? "in no-man's land" : 'at the fence';
       log('VERIFY', 'Instructor confirms: ' + c.cls.label + ' ' + how + ' — ' +
           c.reportedGrid + '. Picked up at ' + clk(cl.t) + '.', pts);
+      /* Detected = the post's job is done: the QRT is on him. He goes still
+         and is picked up a few seconds later. */
+      if (c.cls.hostile && !c.cls.own) { c.interceptAt = t + 8; c.freezeT = 99; }
     } else {
       log('VERIFY', 'Instructor confirms — already held as Contact ' + c.id + '.', 0);
     }
@@ -467,12 +474,10 @@ function tryLock(el) {
                                                c.z < W.zeroLineZ);
     const loose   = Contacts.all().filter(c => c.cls.hostile && !c.resolvedAt &&
                                                c.z >= W.zeroLineZ);
-    score += loose.length * -30;
-    score += heldOff.length * 20;      // kept out is a result, and it is scored
-    if (heldOff.length)
-      log('SHIFT', heldOff.length + ' hostile' + (heldOff.length>1?'s':'') +
-          ' held beyond the zero line for the whole shift — none entered.',
-          heldOff.length * 20);
+    /* Every hostile he never picked up costs the same, wherever it is. */
+    const missed = heldOff.length + loose.length;
+    if (missed) log('SHIFT', missed + ' hostile' + (missed > 1 ? 's' : '') +
+                    ' never detected.', missed * -20);
     const verdict = terminal ? terminal
                   : breaches > 0 ? 'FAIL — BORDER BREACHED'
                   : score >= S.passMark ? 'PASS' : 'FAIL — BELOW STANDARD';
@@ -524,6 +529,13 @@ function tryLock(el) {
       const c = Contacts.spawn(waves[waveIdx], t); waveIdx++;
       if (c.decoy) log('SOUND', 'Movement and voices heard to the right flank.', 0);
     }
+    /* --- detected hostiles are picked up by the QRT --- */
+    for (const c of Contacts.active())
+      if (c.interceptAt && t >= c.interceptAt) {
+        c.state = Contacts.STATE.APPREHENDED; c.resolvedAt = t; apprehended++;
+        c.verdict = 'DETECTED — picked up by QRT'; c.mesh.visible = false;
+        log('QRT', 'Contact ' + c.id + ' (' + c.cls.label + ') picked up by the QRT.', 0);
+      }
     /* --- degradation --- */
     for (let i = DOCTRINE.degradation.length - 1; i >= 0; i--) {
       const d = DOCTRINE.degradation[i];

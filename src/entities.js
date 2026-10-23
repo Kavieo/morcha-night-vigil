@@ -4,6 +4,7 @@ const Contacts = (function () {
 
   const W = DOCTRINE.world;
   let scene, list = [], nextId = 1;
+  let arc = { lo: -30, hi: 30 };      // the open slit, in bearings (set by the sim each shift)
 
   const STATE = { APPROACH:'APPROACH', FREEZE:'FREEZE', CROSS:'CROSSING', THROUGH:'THROUGH',
                   HALTED:'HALTED', APPREHENDED:'APPREHENDED', NEUTRALISED:'NEUTRALISED',
@@ -218,7 +219,10 @@ const Contacts = (function () {
   }
 
   function crossingPoint(route, spec) {
-    if (route === 'PATROL') return spec.x > 0 ? -460 : 460;     // walks the frontage
+    if (route === 'PATROL') {                                     // walks across the open slit
+      const e = THREE.MathUtils.degToRad(spec.x > 0 ? arc.lo : arc.hi);
+      return Math.tan(e) * -W.patrolZ;
+    }
     if (route === 'CULVERT') return W.culvertX;
     if (route === 'STRAIGHT') return spec.x + (Math.random() - 0.5) * 30;   // straight in, at the post
     if (route === 'FENCE_GAP') {
@@ -314,8 +318,8 @@ const Contacts = (function () {
     let best = null, bs = -1e9;
     for (let i = 0; i < 6; i++) {
       const fwd = rr(9, 26);
-      const toward = THREE.MathUtils.clamp((gx - c.x) * 0.35, -14, 14);
-      const x = c.x + toward + rr(-14, 14);
+      const toward = THREE.MathUtils.clamp((gx - c.x) * 0.30, -12, 12);
+      const x = c.x + toward + rr(-24, 24);      // he changes direction, often hard
       const z = Math.min(c.z + fwd, W.fenceZ + 34);
       const cover = World.__gPatch ? World.__gPatch(x, z) : 0.5;
       const score = cover * 2.0 - Math.abs(gx - x) * 0.012 + Math.random() * 0.5;
@@ -451,6 +455,17 @@ const Contacts = (function () {
       /* Follow the ground. A man who drops into a fold or the nallah is in
          genuine dead ground — which is exactly the lane a trainee must learn
          to watch, and it now happens for real rather than by assertion. */
+      /* Nothing goes behind the sandbags: keep every contact inside the open
+         slit. A man who reaches the edge turns back across it. */
+      {
+        const b = Math.atan2(c.x, -c.z), lo = THREE.MathUtils.degToRad(arc.lo), hi = THREE.MathUtils.degToRad(arc.hi);
+        if (b < lo || b > hi) {
+          c.x = Math.tan(b < lo ? lo : hi) * -c.z;
+          if (c.wp) c.wp = null;                    // pick a fresh bound, back inside
+          if (c.targetX !== null && c.route !== 'PATROL') c.targetX = THREE.MathUtils.clamp(c.targetX,
+            Math.tan(lo) * -W.fenceZ + 6, Math.tan(hi) * -W.fenceZ - 6);
+        }
+      }
       c.mesh.position.set(c.x, World.heightAt(c.x, c.z), c.z);
       animateContact(c, dt);
 
@@ -469,7 +484,7 @@ const Contacts = (function () {
         });
       }
 
-      if (c.route === 'PATROL' && Math.abs(c.x) > 450) {
+      if (c.route === 'PATROL' && Math.abs(c.x - c.targetX) < 3) {
         c.state = STATE.WITHDRAWN; c.resolvedAt = tNow;
         c.verdict = c.verdict || 'patrol completed its beat';
       }
@@ -506,6 +521,7 @@ const Contacts = (function () {
   return {
     STATE,
     init(sc) { scene = sc; list = []; nextId = 1; },
+    setArc(a) { arc = a; },
     spawn, update, designate,
     all: () => list,
     active: () => list.filter(c => !c.resolvedAt),

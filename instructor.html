@@ -155,7 +155,7 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
   </div>
 </div>
 
-<div id="alert">TRAINEE REPORTED A CONTACT<small>Watch where he points — then click that contact on the picture, or pick it under Step 1.</small></div>
+<div id="alert">TRAINEE REPORTED A CONTACT<small>Watch where he points — then click that contact on the picture, or pick it on the right.</small></div>
 
 <div id="join">
   <form id="joinbox" autocomplete="off">
@@ -191,17 +191,17 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
 
   <div id="right">
     <div class="card" id="claim">
-      <h3>Step 1 · Wait for his report</h3>
+      <h3>Wait for his report</h3>
       <div class="hint">When the trainee presses SPACE, the contacts he could have seen appear here. Watch where he points, then pick the one he means.</div>
       <div id="opts"></div>
     </div>
 
-    <div class="card">
+    <div class="card" style="display:none">
       <h4>Step 2 · Contact</h4>
       <div id="sel"><span style="color:var(--dim)">None yet. Confirm a report above.</span></div>
     </div>
 
-    <div class="card">
+    <div class="card" style="display:none">
       <h4>Step 3 · Do what he calls, in order</h4>
       <div id="actions">
         <button data-cmd="report"><span>1</span>Report to HQ</button>
@@ -218,6 +218,12 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
     <details class="card" open>
       <summary>Controls</summary>
       <div class="inner">
+        <div>
+          <div class="sub">Light up the ground</div>
+          <div class="row small">
+            <button data-cmd="light">Searchlight on / off</button><button data-cmd="flare">Fire a flare</button>
+          </div>
+        </div>
         <div>
           <div class="sub">Remarks for his report</div>
           <textarea id="notes" placeholder="What he did well, what he missed."></textarea>
