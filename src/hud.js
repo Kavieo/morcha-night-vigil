@@ -129,8 +129,7 @@ const HUD = (function () {
       <h3>INSTRUCTOR CONTROL <span class="dim">— press I to hide</span></h3>
       <div class="row"><label>Inject contact</label>
         <select id="i_type">
-          <option>INFILTRATOR</option><option>SMUGGLER</option><option>CIVILIAN</option>
-          <option>CATTLE</option><option>NILGAI</option><option>DOG</option>
+          <option>INFILTRATOR</option><option>SMUGGLER</option><option>CATTLE</option><option>OWN_TROOPS</option>
         </select>
         <input id="i_brg" type="range" min="-85" max="85" value="0">
         <span id="i_brgv">0°</span>

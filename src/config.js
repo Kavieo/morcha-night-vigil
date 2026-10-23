@@ -135,14 +135,14 @@ const DOCTRINE = {
        hostile that is NOT dealt with reaches the wire INSIDE the 5 minute shift.
        A crossing that lands after the buzzer teaches the trainee nothing.      */
     { t:8,   type:'CATTLE',      x:  120, route:'OPEN'      },   // wire ~02:30
-    { t:18,  type:'NILGAI',      x: -240, route:'OPEN'      },
+    { t:18,  type:'CATTLE',      x: -240, route:'OPEN'      },
     { t:26,  type:'INFILTRATOR', x:  -60, route:'FENCE_GAP' },   // wire ~02:48
 
     { t:48,  type:'OWN_TROOPS',  x: -430, route:'PATROL'    },
-    { t:62,  type:'CIVILIAN',    x:  235, route:'OPEN'      },
+    { t:62,  type:'CATTLE',      x:  235, route:'OPEN'      },
     { t:72,  type:'SMUGGLER',    x: -300, route:'CULVERT'   },   // wire ~03:34
 
-    { t:90,  type:'DOG',         x:   40, route:'OPEN'      },
+    { t:90,  type:'CATTLE',      x:   40, route:'OPEN'      },
     { t:96,  type:'INFILTRATOR', x:  195, route:'FENCE_GAP' },   // wire ~03:58
     { t:104, type:'INFILTRATOR', x:  215, route:'FENCE_GAP' },   // wire ~04:06
 
@@ -153,7 +153,7 @@ const DOCTRINE = {
     { t:138, type:'INFILTRATOR', x: -200, route:'CULVERT'   },   // wire ~04:40
 
     { t:196, type:'OWN_TROOPS',  x:  430, route:'PATROL'    },
-    { t:206, type:'CIVILIAN',    x: -320, route:'OPEN'      }
+    { t:206, type:'CATTLE',      x: -320, route:'OPEN'      }
   ],
 
   /* --- Degradation schedule: the night works against you ------------------ */

@@ -569,12 +569,23 @@ function tryLock(el) {
 
     /* Keep the console live. 6 Hz is plenty for a human reading a map and is
        cheap enough not to touch the frame rate. */
-    if (t - lastPush > 0.16) {
-      lastPush = t;
+    const nowMs = performance.now();
+    if (nowMs - lastPushMs > 100) {               // 10 Hz, on wall time
+      lastPushMs = nowMs;
       Link.state(snapshot());
     }
 
-    if (doRender) Optics.render(renderer, scene);
+    if (doRender) {
+      Optics.render(renderer, scene);
+      /* The picture is grabbed straight after the frame is drawn, with each
+         contact's place ON THAT FRAME, so the console's boxes sit exactly on
+         the shapes instead of trailing a quarter-second behind them. */
+      if (nowMs - lastMirror > 110 && !document.hidden) {
+        lastMirror = nowMs;
+        const img = grabMirror();
+        if (img) Link.mirror({ img, t, marks: Contacts.all().map(c => ({ id: c.id, s: onScreenAt(c) })) });
+      }
+    }
     if (t >= T.shiftDuration) endShift('SHIFT COMPLETE');
   }
 
@@ -584,19 +595,19 @@ function tryLock(el) {
      contact sits ON that picture. The instructor gets his screen with the
      answers drawn over it: what each shape actually is, and whether it is
      moving. He is checking the man's eyes, so he has to see the same frame. */
-  let mirrorCv = null, mirrorCtx = null, lastMirror = 0;
+  let mirrorCv = null, mirrorCtx = null, lastMirror = 0, lastPushMs = 0;
   function grabMirror() {
     const src = renderer.domElement;
     if (!mirrorCv) {
       mirrorCv = document.createElement('canvas');
-      mirrorCv.width = 1280; mirrorCv.height = 720;
+      mirrorCv.width = 1024; mirrorCv.height = 576;
       mirrorCtx = mirrorCv.getContext('2d');
     }
     const a = src.width / src.height;
-    mirrorCv.height = Math.round(1280 / a);
+    mirrorCv.height = Math.round(1024 / a);
     try {
       mirrorCtx.drawImage(src, 0, 0, mirrorCv.width, mirrorCv.height);
-      return mirrorCv.toDataURL('image/jpeg', 0.78);
+      return mirrorCv.toDataURL('image/jpeg', 0.72);
     } catch (e) { return null; }
   }
 
@@ -656,11 +667,7 @@ function tryLock(el) {
     setInterval(() => { if (scene && Optics.camera()) Link.state(snapshot()); }, 500);
     /* The picture itself goes separately and slower — it is much heavier than
        the numbers, and the instructor is watching a man, not a video. */
-    setInterval(() => {
-      if (!scene || document.hidden) return;
-      const img = grabMirror();
-      if (img) Link.mirror({ img, t });
-    }, 220);
+    // (the picture now goes from the frame loop, straight after each render)
   }
 
   /* ================= boot =============================================== */

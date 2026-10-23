@@ -118,6 +118,7 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
 #joingo{height:44px;border-radius:10px;border:0;background:var(--amber);color:#111;font-weight:700;font-size:15px;cursor:pointer}
 #sessbox{cursor:pointer}
 #sesscode{font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:.12em;color:var(--amber)}
+.stat.hide{display:none!important}
 </style>
 </head>
 <body>
@@ -128,8 +129,8 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
   <div class="stat"><span class="lbl">Shift</span><span class="big" id="clock">05:00</span></div>
   <div class="stat"><span class="lbl">Score</span><span class="big" id="score">0</span></div>
   <div class="stat"><span class="lbl">Breaches</span><span class="big" id="breach">0</span></div>
-  <div class="stat"><span class="lbl">Still out</span><span class="big" id="loose">0</span></div>
-  <div class="stat"><span class="lbl">Looking at</span><span class="big" id="brg">0&deg;</span></div>
+  <div class="stat hide"><span class="lbl">Still out</span><span class="big" id="loose">0</span></div>
+  <div class="stat hide"><span class="lbl">Looking at</span><span class="big" id="brg">0&deg;</span></div>
   <div id="met">Waiting for the trainee screen…</div>
   <span id="offline">NOT CONNECTED</span>
   <div class="ctl">
@@ -159,13 +160,13 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
         <img id="mirror" alt="">
         <canvas id="overlay" width="1024" height="576"></canvas>
         <div id="nomirror">Waiting for the trainee screen…</div>
-        <div id="mirrorNote">Brightened for you — his screen is darker</div>
+        
       </div>
       <div class="legend">
         <div><i style="background:var(--red)"></i>Hostile</div>
-        <div><i style="background:var(--grn)"></i>Civilian / animal</div>
+        <div><i style="background:var(--grn)"></i>Cattle</div>
         <div><i style="background:var(--blue)"></i>Own troops</div>
-        <div>Solid box = moving · dashed = gone still</div>
+        <div>Solid = moving · dashed = still</div>
       </div>
     </div>
     <div class="card" id="foot"></div>
@@ -197,14 +198,13 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
       <div id="roewarn" style="display:none"></div>
     </div>
 
-    <div class="card">
-      <h4>Remarks for his report</h4>
-      <textarea id="notes" placeholder="What he did well, what he missed."></textarea>
-    </div>
-
     <details class="card">
-      <summary>Advanced controls</summary>
+      <summary>More controls</summary>
       <div class="inner">
+        <div>
+          <div class="sub">Remarks for his report</div>
+          <textarea id="notes" placeholder="What he did well, what he missed."></textarea>
+        </div>
         <div>
           <div class="sub">Map — click a contact to select it</div>
           <canvas id="plan" width="1200" height="620"></canvas>
@@ -228,8 +228,7 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
           <div class="sub">Add a contact</div>
           <div class="row small">
             <select id="itype">
-              <option>INFILTRATOR</option><option>SMUGGLER</option><option>CIVILIAN</option>
-              <option>CATTLE</option><option>NILGAI</option><option>DOG</option><option>OWN_TROOPS</option>
+              <option>INFILTRATOR</option><option>SMUGGLER</option><option>CATTLE</option><option>OWN_TROOPS</option>
             </select>
             <input id="ibrg" type="range" min="-58" max="58" value="0"><span id="ibrgv">0&deg;</span>
             <button id="igo">Add</button>

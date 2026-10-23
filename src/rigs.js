@@ -66,6 +66,8 @@ const Rigs = (function () {
     }
 
     const h = { root, body, model, bones, bind, prel, side, mixer, act, mode: 'STAND', phase: Math.random() * 10,
+                fill: opts.fill || 0,
+                glow: (opts.tint || new THREE.Color(1, 1, 1)).clone().lerp(new THREE.Color(0.86, 0.91, 1.0), 0.5),
                 speed: 1, meshes: mats, hipsY: bones.Hips ? bones.Hips.position.y : 100 };
     return h;
   }
@@ -93,9 +95,24 @@ const Rigs = (function () {
   }
 
   /* Advance and pose. speed = ground speed in m/s (drives the gait rate). */
+  /* How much he shows. Up on a knee, crouch-dashing or running, the moon
+     catches his shoulders and he is a man-shape over the grass. Flat or
+     crawling he is part of the ground. Eased, so he never pops. */
+  const SHOW = { KNEEL: 1.0, CROUCH: 0.9, RUN: 1.0, WALK: 1.0, STAND: 1.0, CRAWL: 0.55, FLAT: 0.32 };
+  function exposure(h, mode, dt) {
+    const want = SHOW[mode] !== undefined ? SHOW[mode] : 1;
+    h.show = h.show === undefined ? want : h.show + (want - h.show) * Math.min(1, dt * 2.5);
+    const f = h.fill * h.show;
+    for (const m of h.meshes) {
+      const mt = m.userData.matNormal || m.material;
+      if (mt.emissive) mt.emissive.copy(h.glow).multiplyScalar(f);
+    }
+  }
+
   function pose(h, mode, dt, speed) {
     const B = h.bones;
     h.mode = mode;
+    if (h.fill) exposure(h, mode, dt);
     const s = Math.max(0, speed || 0);
     const moving = s > 0.05;
     h.phase += dt * (moving ? (0.9 + s * 1.1) : 0.6);

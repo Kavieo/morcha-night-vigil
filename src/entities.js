@@ -105,10 +105,10 @@ const Contacts = (function () {
   /* Clothing per class, and how much sky-fill keeps him a shape rather than
      a hole (the moon is ahead of the post, so every front is in shadow). */
   const DRESS = {
-    INFILTRATOR: { tint: [0.13, 0.13, 0.11], fill: 0.06 },   // dark drab, blacked-out
-    SMUGGLER:    { tint: [0.30, 0.25, 0.18], fill: 0.09 },   // brown shawl
+    INFILTRATOR: { tint: [0.82, 0.86, 0.96], fill: 2.4 },    // moon-white: readable at 2 m on a 55-inch screen
+    SMUGGLER:    { tint: [0.52, 0.43, 0.31], fill: 0.85 },   // brown shawl
     CIVILIAN:    { tint: [0.62, 0.60, 0.55], fill: 0.12 },   // pale kurta
-    OWN_TROOPS:  { tint: [0.24, 0.27, 0.19], fill: 0.10 }    // olive
+    OWN_TROOPS:  { tint: [0.34, 0.37, 0.27], fill: 0.60 }    // olive
   };
 
   function heatSwap(root, v) {

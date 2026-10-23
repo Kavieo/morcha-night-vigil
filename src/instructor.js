@@ -33,13 +33,16 @@
   Link.on('event', d => logLine('LINK', d.text, 0));
 
   /* The trainee's own picture, with what each shape actually is drawn on it. */
-  let mirrorReady = false;
+  let mirrorReady = false, marks = null, pendingMarks = null;
   Link.on('mirror', d => {
     const img = $('mirror');
     /* Match the box to his real screen shape, so the boxes land on the shapes
        instead of on a stretched copy of them. */
-    img.onload = () => { if (img.naturalWidth)
-      $('mirrorWrap').style.aspectRatio = img.naturalWidth + ' / ' + img.naturalHeight; };
+    img.onload = () => {
+      if (img.naturalWidth) $('mirrorWrap').style.aspectRatio = img.naturalWidth + ' / ' + img.naturalHeight;
+      marks = pendingMarks;               // boxes switch with the picture they belong to
+    };
+    pendingMarks = d.marks || null;
     img.src = d.img;
     if (!mirrorReady) { mirrorReady = true; img.style.display = 'block';
                         $('nomirror').style.display = 'none'; }
@@ -57,9 +60,13 @@
     g.clearRect(0, 0, W, H);
     if (!S || !S.truth) return;
     const now = Date.now();
+    const at = {};
+    if (marks) for (const m of marks) at[m.id] = m.s;
     for (const t of S.truth) {
-      if (!t.screen || t.resolved) continue;
-      const x = t.screen.sx * W, y = t.screen.sy * H;
+      const sc = marks ? at[t.id] : t.screen;
+      if (!sc || t.resolved) continue;
+      t.screen = sc;
+      const x = sc.sx * W, y = sc.sy * H;
       /* Box it generously — the instructor needs to find it fast, not measure
          it. Size grows as the contact closes so near ones are unmissable. */
       const r = Math.max(14, Math.min(90, t.screen.px * W * 0.5));
@@ -92,7 +99,7 @@
       g.fillText(sub, x - r + 6, ly + 27);
     }
   }
-  setInterval(paintOverlay, 60);          // the pulse needs its own beat
+  (function tick(){ paintOverlay(); requestAnimationFrame(tick); })();   // smooth, every display frame
 
   $('popTrainee').onclick = () => window.open('index.html' + (Link.code() ? '?code=' + Link.code() : ''), 'morchaTrainee',
     'width=1440,height=810,menubar=no,toolbar=no,location=no');
