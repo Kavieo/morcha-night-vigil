@@ -35,7 +35,15 @@
   Link.on('event', d => logLine('LINK', d.text, 0));
 
   /* The trainee's own picture, with what each shape actually is drawn on it. */
-  let mirrorReady = false, marks = null, pendingMarks = null;
+  let mirrorReady = false, marks = null, pendingMarks = null, videoOn = false;
+  /* Another computer: the picture arrives as live video. */
+  Link.on('video', st => {
+    const v = $('mirrorVid');
+    v.srcObject = st; v.play().catch(() => {});
+    v.onloadedmetadata = () => { if (v.videoWidth) $('mirrorWrap').style.aspectRatio = v.videoWidth + ' / ' + v.videoHeight; };
+    videoOn = true; mirrorReady = true;
+    v.style.display = 'block'; $('mirrorCv').style.display = 'none'; $('nomirror').style.display = 'none';
+  });
   Link.on('mirror', d => {
     const img = $('mirror');
     /* Match the box to his real screen shape, so the boxes land on the shapes
@@ -44,6 +52,8 @@
       if (img.naturalWidth) $('mirrorWrap').style.aspectRatio = img.naturalWidth + ' / ' + img.naturalHeight;
       marks = pendingMarks;               // boxes switch with the picture they belong to
     };
+    if (!d.img) { marks = d.marks || null; return; }       // video carries the picture
+    if (videoOn) return;
     /* Decode off-screen, then swap in one go: no blank flash between frames. */
     const nm = d.marks || null, im = new Image();
     im.onload = () => {
@@ -149,7 +159,8 @@
     $('offline').textContent = !Link.code() ? 'NO SESSION'
       : !live ? (md === 'connecting' ? 'CONNECTING…' : 'NOT CONNECTED')
       : hidden ? 'TRAINEE SCREEN HIDDEN'
-      : md === 'network' ? 'LINKED · OTHER COMPUTER' : 'LINKED · THIS COMPUTER';
+      : md === 'network' ? 'LINKED · OTHER COMPUTER' + (Link.latency() !== null ? ' · ' + Link.latency() + ' ms' : '')
+      : 'LINKED · THIS COMPUTER';
     $('offline').style.color = !live ? 'var(--red)' : hidden ? 'var(--amber)' : 'var(--grn)';
   }, 500);
 

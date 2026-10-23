@@ -672,6 +672,18 @@ function tryLock(el) {
       /* The picture is grabbed straight after the frame is drawn, with each
          contact's place ON THAT FRAME, so the console's boxes sit exactly on
          the shapes instead of trailing a quarter-second behind them. */
+      /* Live video for consoles on another computer: a small copy of every
+         frame, which the browser encodes as a video call. */
+      if (Link.wantsVideo()) {
+        const src = renderer.domElement;
+        if (!vidCv) {
+          vidCv = document.createElement('canvas'); vidCtx = vidCv.getContext('2d');
+          vidCv.width = 960; vidCv.height = Math.round(960 * src.height / src.width);
+          vidCtx.drawImage(src, 0, 0, vidCv.width, vidCv.height);
+          try { Link.setVideo(vidCv.captureStream(30)); } catch (e) {}
+        }
+        vidCtx.drawImage(src, 0, 0, vidCv.width, vidCv.height);
+      }
       if (nowMs - lastMirror > 110 && !document.hidden) {
         lastMirror = nowMs;
         const img = grabMirror();
@@ -687,7 +699,7 @@ function tryLock(el) {
      contact sits ON that picture. The instructor gets his screen with the
      answers drawn over it: what each shape actually is, and whether it is
      moving. He is checking the man's eyes, so he has to see the same frame. */
-  let mirrorCv = null, mirrorCtx = null, lastMirror = 0, lastPushMs = 0;
+  let mirrorCv = null, mirrorCtx = null, lastMirror = 0, lastPushMs = 0, vidCv = null, vidCtx = null;
   function grabMirror() {
     const src = renderer.domElement;
     if (!mirrorCv) {

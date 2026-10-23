@@ -23,6 +23,9 @@ const Link = (function () {
   let mode = 'none';                // 'local' | 'network' | 'connecting' | 'none'
   let localHeard = false;
   const handlers = {}, codeFns = [];
+  let vstream = null;               // sim: live video of the trainee's picture
+  let rtt = null, pingT = null;      // console: measured round trip, ms
+  const forceNet = /[?&]net=1\b/.test(location.search);   // test switch: skip same-computer link
 
   function dispatch(m) {
     if (!m || m.to !== role) return;           // ignore our own echoes
@@ -44,6 +47,7 @@ const Link = (function () {
       if (ch) ch.close();
       ch = new BroadcastChannel('morcha-link-' + code);
       ch.onmessage = e => {
+        if (role === 'console' && forceNet) return;
         if (role === 'console' && !localHeard) { localHeard = true; mode = 'local'; dropNetwork(); }
         if (role === 'console' && conn) return;  // network already carrying it
         dispatch(e.data);
@@ -59,8 +63,12 @@ const Link = (function () {
     try { if (peer) peer.destroy(); } catch (e) {}
     peer = new window.Peer(PREFIX + code, { debug: 0 });
     peer.on('connection', c => {
-      c.on('open', () => conns.add(c));
-      c.on('data', dispatch);
+      c.on('open', () => { conns.add(c); callConsole(c); });
+      c.on('data', m => {
+        if (m && m.kind === 'videoOk') { c.videoOn = true; return; }
+        if (m && m.kind === 'ping') { try { c.send({ to: 'console', kind: 'pong', data: m.data, code }); } catch (e) {} return; }
+        dispatch(m);
+      });
       c.on('close', () => conns.delete(c));
       c.on('error', () => conns.delete(c));
     });
@@ -70,6 +78,26 @@ const Link = (function () {
       }
     });
     peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
+  }
+
+  /* The picture goes as real-time VIDEO, not as pictures down the data line:
+     a video call is built for low delay, and it leaves the data line free for
+     the reports and numbers, which are tiny. */
+  function callConsole(c) {
+    if (!vstream || !peer || c.videoCall) return;
+    try {
+      const call = peer.call(c.peer, vstream);
+      c.videoCall = call;
+      const tune = () => { try {
+        const pc = call.peerConnection; if (!pc) return;
+        pc.getSenders().forEach(sd => { if (!sd.track || sd.track.kind !== 'video') return;
+          const p = sd.getParameters(); p.degradationPreference = 'maintain-framerate';
+          if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+          p.encodings[0].maxBitrate = 2500000; p.encodings[0].maxFramerate = 30;
+          sd.setParameters(p).catch(() => {}); });
+      } catch (e) {} };
+      setTimeout(tune, 1500); setTimeout(tune, 4000);
+    } catch (e) {}
   }
 
   let retry = null;
@@ -83,14 +111,29 @@ const Link = (function () {
         if (localHeard) { c.close(); return; }
         conn = c; mode = 'network';
         send('sim', 'hello', { role });
+        clearInterval(pingT);
+        pingT = setInterval(() => { if (conn && conn.open) try { conn.send({ to: 'sim', kind: 'ping', data: performance.now(), code }); } catch (e) {} }, 1000);
       });
-      c.on('data', dispatch);
+      c.on('data', m => {
+        if (m && m.kind === 'pong') { const r = performance.now() - m.data; rtt = rtt === null ? r : rtt * 0.7 + r * 0.3; return; }
+        dispatch(m);
+      });
       c.on('close', () => { if (conn === c) { conn = null; mode = 'connecting'; } });
     };
     if (!peer) {
       peer = new window.Peer({ debug: 0 });
       peer.on('open', go);
       peer.on('error', () => {});
+      peer.on('call', call => {
+        call.answer();
+        call.on('stream', st => {
+          try { call.peerConnection.getReceivers().forEach(r => {
+            try { r.playoutDelayHint = 0; } catch (e) {}
+            try { r.jitterBufferTarget = 0; } catch (e) {} }); } catch (e) {}
+          if (handlers.video) handlers.video(st);
+          if (conn && conn.open) try { conn.send({ to: 'sim', kind: 'videoOk', code }); } catch (e) {}
+        });
+      });
       peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
     } else if (peer.open) go();
     clearInterval(retry);
@@ -113,8 +156,14 @@ const Link = (function () {
         if (!c.open) continue;
         /* A slow line must never back up: drop a picture rather than queue it. */
         const dc = c.dataChannel;
-        if (kind === 'mirror' && dc && dc.bufferedAmount > 400000) continue;
-        try { c.send(m); } catch (e) {}
+        let mm = m;
+        if (kind === 'mirror') {
+          if (c.videoOn) mm = { to, kind, code, data: { t: data.t, marks: data.marks } };   // video carries the picture
+          else if (dc && dc.bufferedAmount > 120000) continue;
+        }
+        // never let the small, urgent messages wait behind a queue
+        if (kind === 'state' && dc && dc.bufferedAmount > 60000) continue;
+        try { c.send(mm); } catch (e) {}
       }
     } else if (conn && conn.open) {
       try { conn.send(m); } catch (e) {}
@@ -161,6 +210,9 @@ const Link = (function () {
     cmd(name, args) { send('sim', 'cmd', { name, args }); },
     hello()   { if (code) send(role === 'console' ? 'sim' : 'console', 'hello', { role }); },
     isOpen()  { return !!ch || !!conn || conns.size > 0; },
+    setVideo(st) { vstream = st; for (const c of conns) callConsole(c); },
+    wantsVideo() { return conns.size > 0; },
+    latency()    { return rtt === null ? null : Math.round(rtt / 2); },
     debug()   { return { role, code, mode, peer: !!(peer && peer.open), conns: conns.size,
                          conn: !!(conn && conn.open), localHeard }; }
   };

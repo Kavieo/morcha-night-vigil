@@ -45,7 +45,7 @@ button{font-family:var(--sans);cursor:pointer}
 #mirrorWrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden}
 #mirror{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:none;filter:brightness(var(--mlift,1.7)) contrast(1.08)}
 #overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-#mirrorCv{position:absolute;inset:0;width:100%;height:100%;filter:brightness(var(--mlift,1.7)) contrast(1.08);cursor:crosshair}
+#mirrorCv,#mirrorVid{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;filter:brightness(var(--mlift,1.7)) contrast(1.08);cursor:crosshair}
 #alert{display:none;position:fixed;left:0;right:0;top:0;z-index:40;padding:14px 20px;text-align:center;font:800 20px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;letter-spacing:.04em;color:#111;background:var(--amber);animation:alertb .7s steps(2) infinite}
 #alert.on{display:block}
 #alert small{display:block;font-weight:600;font-size:13px;letter-spacing:0;margin-top:3px}
@@ -174,7 +174,7 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
       <h4>Trainee's view — answers shown only to you
         <button id="popTrainee">Open trainee screen</button></h4>
       <div id="mirrorWrap">
-        <img id="mirror" alt="" style="display:none"><canvas id="mirrorCv" style="display:none"></canvas>
+        <img id="mirror" alt="" style="display:none"><canvas id="mirrorCv" style="display:none"></canvas><video id="mirrorVid" autoplay muted playsinline style="display:none"></video>
         <canvas id="overlay" width="1024" height="576"></canvas>
         <div id="nomirror">Waiting for the trainee screen…</div>
         
