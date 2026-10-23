@@ -44,7 +44,22 @@ button{font-family:var(--sans);cursor:pointer}
 #viewcard{padding:10px;flex:0 0 auto}
 #mirrorWrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden}
 #mirror{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;display:none;filter:brightness(var(--mlift,1.7)) contrast(1.08)}
-#overlay{position:absolute;inset:0;width:100%;height:100%}
+#overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#mirrorCv{position:absolute;inset:0;width:100%;height:100%;filter:brightness(var(--mlift,1.7)) contrast(1.08);cursor:crosshair}
+#alert{display:none;position:fixed;left:0;right:0;top:0;z-index:40;padding:14px 20px;text-align:center;font:800 20px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;letter-spacing:.04em;color:#111;background:var(--amber);animation:alertb .7s steps(2) infinite}
+#alert.on{display:block}
+#alert small{display:block;font-weight:600;font-size:13px;letter-spacing:0;margin-top:3px}
+@keyframes alertb{50%{background:#ffd27a}}
+.adv-hide{display:none!important}
+/* Smaller screens: one column, page scrolls, nothing overlaps. */
+@media (max-width: 1100px){
+  html,body{height:auto}
+  #bar{flex-wrap:wrap;height:auto;padding:10px 14px;gap:12px}
+  #met{order:9;flex-basis:100%}
+  #main{grid-template-columns:minmax(0,1fr);height:auto}
+  #right{overflow:visible}
+  #foot{max-height:220px}
+}
 #nomirror{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--dim);font-size:14px}
 #mirrorNote{position:absolute;right:10px;bottom:8px;font-size:10px;color:#9aa;letter-spacing:.06em;pointer-events:none;background:rgba(0,0,0,.45);padding:3px 7px;border-radius:4px}
 .legend{display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--dim)}
@@ -140,6 +155,8 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
   </div>
 </div>
 
+<div id="alert">TRAINEE REPORTED A CONTACT<small>Watch where he points — then click that contact on the picture, or pick it under Step 1.</small></div>
+
 <div id="join">
   <form id="joinbox" autocomplete="off">
     <div class="brand">MORCHA<small>Instructor console</small></div>
@@ -157,7 +174,7 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
       <h4>Trainee's view — answers shown only to you
         <button id="popTrainee">Open trainee screen</button></h4>
       <div id="mirrorWrap">
-        <img id="mirror" alt="">
+        <img id="mirror" alt="" style="display:none"><canvas id="mirrorCv" style="display:none"></canvas>
         <canvas id="overlay" width="1024" height="576"></canvas>
         <div id="nomirror">Waiting for the trainee screen…</div>
         
@@ -209,14 +226,14 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
           <div class="sub">Map — click a contact to select it</div>
           <canvas id="plan" width="1200" height="620"></canvas>
         </div>
-        <div>
+        <div class="adv-hide">
           <div class="sub">His sight</div>
           <div class="row small">
             <button data-optic="0">Eyes</button><button data-optic="1">Binoculars</button>
             <button data-optic="2">Thermal</button><button data-optic="3">Night vision</button>
           </div>
         </div>
-        <div>
+        <div class="adv-hide">
           <div class="sub">Turn his view</div>
           <div class="row small">
             <button data-nudge="-10">&laquo; 10°</button><button data-nudge="-3">&lsaquo; 3°</button>
@@ -238,10 +255,10 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
           <div class="sub">Conditions</div>
           <div class="row"><label>Fog</label><input id="fog" type="range" min="8" max="90" value="16"><span id="fogv">clear</span></div>
           <div class="row"><label>Speed</label><input id="ts" type="range" min="1" max="12" value="1"><span id="tsv">&times;1</span></div>
-          <div class="row"><label>Brightness</label><input id="expo" type="range" min="30" max="300" value="180"><span id="expov">0.180</span></div>
-          <div class="row"><label>Lamp glow</label><input id="bloom" type="range" min="0" max="120" value="34"><span id="bloomv">0.34</span></div>
+          <div class="row adv-hide"><label>Brightness</label><input id="expo" type="range" min="30" max="300" value="180"><span id="expov">0.180</span></div>
+          <div class="row adv-hide"><label>Lamp glow</label><input id="bloom" type="range" min="0" max="120" value="34"><span id="bloomv">0.34</span></div>
         </div>
-        <div class="row small"><button id="reveal">Show all contacts on his screen</button></div>
+        <div class="row small adv-hide"><button id="reveal">Show all contacts on his screen</button></div>
       </div>
     </details>
   </div>

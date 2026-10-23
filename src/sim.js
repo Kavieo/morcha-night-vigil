@@ -118,7 +118,10 @@ function tryLock(el) {
 
   /* The trainee's one action. */
   function raiseClaim() {
-    if (!running || ended || pendingClaim) return;
+    if (!running || ended) return;
+    /* Already reported and the instructor has not answered: say it again
+       instead of swallowing the press. */
+    if (pendingClaim) { pendingClaim.nudges = (pendingClaim.nudges || 0) + 1; Link.claim(pendingClaim); return; }
     const cl = { id: claimSeq++, t, verified: false,
                  options: detectableNow(), result: null, contactId: null };
     claims.push(cl); pendingClaim = cl;
@@ -435,7 +438,19 @@ function tryLock(el) {
      it with a fixed dt and run a whole shift deterministically, without needing
      the window to be visible — a browser throttles a hidden tab to about 0.1
      fps, which otherwise makes an end-to-end run impossible to verify. */
+  function expireClaim() {
+    /* An unanswered report must not lock the trainee out for the rest of the
+       shift: after 25 s it lapses (no score either way) and he can report again. */
+    if (pendingClaim && t - pendingClaim.t > 25) {
+      pendingClaim.verified = true; pendingClaim.result = 'NOT VERIFIED';
+      log('CLAIM', 'Report lapsed — instructor did not verify it within 25 s.', 0);
+      Link.event({ kind: 'LAPSED', text: 'Report lapsed (not verified in 25 s).' });
+      pendingClaim = null; HUD.showClaim(null);
+    }
+  }
+
   function step(dt, doRender) {
+    expireClaim();
     if (!running || paused) { if (doRender) Optics.render(renderer, scene); return; }
     t += dt;
 

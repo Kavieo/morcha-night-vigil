@@ -26,7 +26,9 @@
   if (!Link.code()) askCode();
 
   /* ---------- incoming ---------------------------------------------------- */
+  let doneClaim = -1;      // a report already answered here; ignore stale copies in flight
   Link.on('state', d => {
+    if (d.pendingClaim && d.pendingClaim.id === doneClaim) d.pendingClaim = null;
     S = d; connected = true; lastSeen = Date.now();
     paint(); paintClaim(); paintSel();
   });
@@ -42,8 +44,20 @@
       if (img.naturalWidth) $('mirrorWrap').style.aspectRatio = img.naturalWidth + ' / ' + img.naturalHeight;
       marks = pendingMarks;               // boxes switch with the picture they belong to
     };
-    pendingMarks = d.marks || null;
-    img.src = d.img;
+    /* Decode off-screen, then swap in one go: no blank flash between frames. */
+    const nm = d.marks || null, im = new Image();
+    im.onload = () => {
+      const cv = $('mirrorCv');
+      if (cv.width !== im.naturalWidth || cv.height !== im.naturalHeight) {
+        cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+        $('mirrorWrap').style.aspectRatio = im.naturalWidth + ' / ' + im.naturalHeight;
+      }
+      cv.getContext('2d').drawImage(im, 0, 0);
+      marks = nm;
+      if (!mirrorReady) { mirrorReady = true; cv.style.display = 'block'; $('nomirror').style.display = 'none'; }
+    };
+    im.src = d.img;
+    return;
     if (!mirrorReady) { mirrorReady = true; img.style.display = 'block';
                         $('nomirror').style.display = 'none'; }
   });
@@ -104,9 +118,14 @@
   $('popTrainee').onclick = () => window.open('index.html' + (Link.code() ? '?code=' + Link.code() : ''), 'morchaTrainee',
     'width=1440,height=810,menubar=no,toolbar=no,location=no');
   Link.on('claim', c => {
-    logLine('CLAIM', 'Trainee reports a contact at ' + clk(c.t) +
-            '. Watch where he points.', 0);
-    try { beep(); } catch (e) {}
+    /* Act on the report the instant it lands — don't wait for the next state. */
+    if (!S) S = {};
+    S.pendingClaim = { id: c.id, t: c.t, options: c.options || [] };
+    paintClaim();
+    if (!c.nudges) logLine('CLAIM', 'Trainee reports a contact at ' + clk(c.t) + '. Watch where he points.', 0);
+    else logLine('CLAIM', 'He is pressing again — still waiting for your answer.', 0);
+    beep(); flashTitle();
+    $('claim').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   });
   Link.on('ended', a => {
     logLine('SHIFT', a.verdict + ' — score ' + a.score + ' / pass ' + a.passMark, 0);
@@ -137,11 +156,32 @@
   function clk(x){ const m=Math.floor(x/60), s=Math.floor(x%60);
     return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0'); }
 
+  /* One audio context, unlocked by the instructor's first click (browsers
+     refuse sound before any interaction). Two short rising tones. */
+  let actx = null;
+  const unlock = () => { try { if (!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+                               if (actx.state === 'suspended') actx.resume(); } catch (e) {} };
+  document.addEventListener('pointerdown', unlock); document.addEventListener('keydown', unlock);
   function beep(){
-    const c = new (window.AudioContext||window.webkitAudioContext)();
-    const o = c.createOscillator(), g = c.createGain();
-    o.frequency.value = 880; g.gain.value = 0.08;
-    o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + 0.12);
+    try {
+      unlock(); if (!actx) return;
+      [0, 0.16].forEach((dt, i) => {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.frequency.value = i ? 1180 : 880; g.gain.value = 0.18;
+        o.connect(g); g.connect(actx.destination);
+        o.start(actx.currentTime + dt); o.stop(actx.currentTime + dt + 0.12);
+      });
+    } catch (e) {}
+  }
+  let titleT = null;
+  function flashTitle() {
+    clearInterval(titleT); let n = 0; const base = 'MORCHA — Instructor Console';
+    titleT = setInterval(() => { document.title = (n++ % 2) ? base : '🔴 CONTACT REPORTED';
+      if (n > 12 || !(S && S.pendingClaim)) { clearInterval(titleT); document.title = base; } }, 500);
+  }
+  function alertBanner(pc) {
+    const b = $('alert'); if (!b) return;
+    b.classList.toggle('on', !!pc);
   }
 
   function logLine(kind, text, pts) {
@@ -238,20 +278,22 @@
   });
 
   /* ---------- the claim panel --------------------------------------------- */
+  const setHTML = (el, html, key) => { if (el._h !== html) { el.innerHTML = html; el._h = html; } };
   function paintClaim() {
     const box = $('claim'), opts = $('opts');
     const pc = S && S.pendingClaim;
+    alertBanner(pc);
     if (!pc) {
       box.className = ''; box.querySelector('h3').textContent = 'Step 1 · Wait for his report';
-      opts.innerHTML = ''; return;
+      setHTML(opts, ''); return;
     }
     box.className = 'live';
     box.querySelector('h3').textContent = 'He reported at ' + clk(pc.t) + ' — which one is he pointing at?';
     if (!pc.options.length) {
-      opts.innerHTML = '<div class="opt"><b>Nothing was out there.</b>' +
-        '<button data-verify="FALSE">False alarm</button></div>';
+      setHTML(opts, '<div class="opt"><b>Nothing was out there.</b>' +
+        '<button data-verify="FALSE">False alarm</button></div>');
     } else {
-      opts.innerHTML = pc.options.map(o =>
+      setHTML(opts, pc.options.map(o =>
         '<div class="opt ' + (o.own ? 'own' : o.hostile ? 'host' : 'civ') + '">' +
           '<div><b>#' + o.id + ' ' + o.type + '</b>' +
           '<div class="meta">' + (o.bearing > 0 ? '+' : '') + o.bearing + '° · ' +
@@ -259,9 +301,24 @@
             (o.designated ? ' · already held' : '') + '</div></div>' +
           '<button data-verify="' + o.id + '">This one</button></div>').join('') +
         '<div class="opt"><b>He pointed at empty ground</b>' +
-        '<button data-verify="FALSE">False alarm</button></div>';
+        '<button data-verify="FALSE">False alarm</button></div>');
     }
   }
+
+  /* Click the boxed contact on his picture to confirm it — one click. */
+  $('mirrorWrap').addEventListener('click', e => {
+    const pc = S && S.pendingClaim; if (!pc || !marks) return;
+    const r = $('mirrorWrap').getBoundingClientRect();
+    const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+    let best = null, bd = 0.06;
+    for (const m of marks) { if (!m.s) continue;
+      const d = Math.hypot(m.s.sx - fx, (m.s.sy - fy) * r.height / r.width);
+      if (d < bd && pc.options.some(o => o.id === m.id)) { bd = d; best = m.id; } }
+    if (best === null) return;
+    Link.cmd('verify', { claimId: pc.id, contactId: best }); selId = best;
+    doneClaim = pc.id; S.pendingClaim = null; paintClaim();
+    logLine('VERIFY', 'Confirmed contact #' + best + ' (clicked on the picture).', 0);
+  });
 
   document.addEventListener('click', e => {
     const v = e.target.getAttribute && e.target.getAttribute('data-verify');
@@ -269,6 +326,7 @@
     const pc = S && S.pendingClaim; if (!pc) return;
     Link.cmd('verify', { claimId: pc.id, contactId: v === 'FALSE' ? 'FALSE' : +v });
     if (v !== 'FALSE') selId = +v;
+    doneClaim = pc.id; S.pendingClaim = null; paintClaim();
     logLine('VERIFY', v === 'FALSE' ? 'Marked false alarm.' : 'Confirmed contact #' + v + '.',
             v === 'FALSE' ? -1 : 0);
   });
@@ -276,26 +334,26 @@
   /* ---------- selected contact + ROE guard --------------------------------- */
   function paintSel() {
     const s = S && S.selected, box = $('sel'), w = $('roewarn');
-    if (!s) { box.innerHTML = '<span style="color:var(--dim)">None yet. Confirm a report above.</span>';
+    if (!s) { setHTML(box, '<span style="color:var(--dim)">None yet. Confirm a report above.</span>');
               w.style.display = 'none'; return; }
     selId = s.id;
     const rung = (l, on) => '<div class="lad ' + (on ? 'on' : '') + '"><span>' +
       (on ? '▣' : '▢') + ' ' + l + '</span></div>';
-    box.innerHTML = '<div id="selhdr">#' + s.id + ' ' + s.type + '</div>' +
+    setHTML(box, '<div id="selhdr">#' + s.id + ' ' + s.type + '</div>' +
       '<div id="selgrid">' + (s.grid || '—') + '</div>' +
       rung('Reported to Coy HQ', s.reported) +
       rung('Challenged', s.challenged) +
       rung('Illuminated', s.illuminated) +
       rung('QRT dispatched', s.qrtSent) +
       rung('Weapon positively ID’d', s.armedIdentified) +
-      (s.verdict ? '<div style="color:var(--dim);margin-top:6px">' + s.verdict + '</div>' : '');
+      (s.verdict ? '<div style="color:var(--dim);margin-top:6px">' + s.verdict + '</div>' : ''));
 
     const bad = [];
     if (s.own) bad.push('This is OUR OWN PATROL. Aimed fire ends the shift.');
     if (s.beyondZeroLine) bad.push('Still BEYOND THE ZERO LINE — on Pakistani soil. ' +
       'Aimed fire is a cross-border incident.');
     if (!s.armedIdentified) bad.push('No weapon confirmed. Engagement would be outside ROE.');
-    w.innerHTML = bad.join('<br>'); w.style.display = bad.length ? 'block' : 'none';
+    setHTML(w, bad.join('<br>')); w.style.display = bad.length ? 'block' : 'none';
   }
 
   /* ---------- controls ------------------------------------------------------ */
