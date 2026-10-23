@@ -382,6 +382,10 @@
   $('start').onclick  = () => Link.cmd('start');
   $('end').onclick    = () => Link.cmd('end');
   $('notes').oninput  = e => Link.cmd('notes', { v: e.target.value });
+  /* How bright HIS picture looks on THIS screen only — the trainee's screen
+     is not touched. */
+  $('mlift').oninput = e => { const v = +e.target.value / 100;
+    $('mirrorWrap').style.setProperty('--mlift', v); $('mliftv').textContent = v.toFixed(1) + '×'; };
 
   /* ---------- top bar ------------------------------------------------------- */
   setInterval(() => {
