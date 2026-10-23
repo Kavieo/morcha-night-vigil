@@ -7,7 +7,8 @@
   let S = null, connected = false, lastSeen = 0, selId = null;
   const ARC = 58, MAXR = 640;
 
-  Link.onCode(c => { $('sesscode').textContent = c; });
+  let joinedAt = Date.now();
+  Link.onCode(c => { $('sesscode').textContent = c; joinedAt = Date.now(); });
   Link.open('console');
   function askCode() {
     $('join').classList.add('on'); $('joincode').value = ''; $('joincode').focus();
@@ -108,6 +109,17 @@
     const live = connected && Date.now() - lastSeen < 3000;
     const hidden = live && S && S.hidden;
     const md = Link.mode();
+    /* Say plainly why nothing is showing: almost always a stale code, because
+       the trainee screen makes a NEW code every time it is reloaded. */
+    if (!mirrorReady) {
+      const since = (Date.now() - joinedAt) / 1000;
+      $('nomirror').innerHTML = !Link.code()
+        ? 'Enter the session code shown on the trainee screen.'
+        : since < 8 ? 'Connecting to session <b>' + Link.code() + '</b>…'
+        : 'No trainee screen found with code <b>' + Link.code() + '</b>.<br>' +
+          '<span style="font-size:12px">The trainee screen makes a new code each time it is reloaded. ' +
+          'Check the code on it, then click the code at the top left to change it.</span>';
+    }
     $('offline').textContent = !Link.code() ? 'NO SESSION'
       : !live ? (md === 'connecting' ? 'CONNECTING…' : 'NOT CONNECTED')
       : hidden ? 'TRAINEE SCREEN HIDDEN'

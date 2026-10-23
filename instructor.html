@@ -248,8 +248,28 @@ input[type=range]{flex:1;min-width:110px;accent-color:var(--grn)}
   </div>
 </div>
 
-<script src="vendor/peerjs.min.js"></script>
-<script src="src/link.js"></script>
-<script src="src/instructor.js"></script>
+<script>
+/* Load with a cache-bust, like the trainee screen: a browser holding an old
+   copy of one script next to a new copy of another breaks the console. Any
+   error is shown on the page in plain words instead of failing silently. */
+window.addEventListener('error', e => {
+  const m = document.getElementById('met');
+  if (m) { m.textContent = 'Console error: ' + (e.message || 'unknown') + ' — press Cmd+Shift+R (Ctrl+Shift+R) to reload.';
+           m.style.color = 'var(--red)'; }
+});
+(function () {
+  const v = location.protocol.indexOf('http') === 0 ? ('?v=' + Date.now()) : '';
+  const files = ['vendor/peerjs.min.js', 'src/link.js', 'src/instructor.js'];
+  (function next(i) {
+    if (i >= files.length) return;
+    const s = document.createElement('script');
+    s.src = files[i] + v;
+    s.onload = () => next(i + 1);
+    s.onerror = () => { document.getElementById('met').textContent =
+      'Could not load ' + files[i] + ' — check the connection and reload.'; };
+    document.head.appendChild(s);
+  })(0);
+})();
+</script>
 </body>
 </html>
