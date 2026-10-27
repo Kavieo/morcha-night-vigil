@@ -61,6 +61,12 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
 .res{font-weight:800;font-size:12px;letter-spacing:.06em}
 .res.p{color:var(--grn)} .res.f{color:var(--red)} .res.n{color:var(--faint);font-weight:600}
 #saved{color:var(--dim);font-size:12px}
+#saved.ok{color:var(--grn)} #saved.warn{color:var(--amber)}
+#setup{background:var(--panel);border:1px solid var(--amber);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+#setup p{color:var(--dim);margin:6px 0 10px;font-size:13px}
+#setup .row{display:flex;gap:8px;flex-wrap:wrap}
+#setup input{flex:1;min-width:240px;height:36px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);padding:0 10px;font-family:var(--mono)}
+#tokMsg{margin-top:8px;font-size:13px}
 @media (max-width:700px){ main{padding:12px} #top{padding:10px 12px} }
 </style>
 </head>
@@ -83,6 +89,7 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
   <div id="top">
     <h2>Training History 2026</h2>
     <span id="saved"></span>
+    <button class="btn" id="conn" hidden>Connect online saving</button>
     <span class="sp"></span>
     <button class="btn" id="imp">Import marks (CSV)</button>
     <button class="btn pri" id="exp">Export to Excel</button>
@@ -90,15 +97,22 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
     <input id="impFile" type="file" accept=".csv,text/csv" hidden>
   </div>
   <main>
+    <div id="setup" hidden>
+      <b>One-time setup: save marks online for every computer.</b>
+      <p>Paste a GitHub fine-grained access token for the <code>Kavieo/morcha-night-vigil</code> repository with <b>Contents: Read and write</b>.
+      It is encrypted with this login and stored with the records — after this, signing in on any computer loads and saves the same marks.</p>
+      <div class="row"><input id="tok" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false"><button class="btn pri" id="tokGo">Connect</button><button class="btn" id="tokNo">Cancel</button></div>
+      <div id="tokMsg"></div>
+    </div>
     <div id="stats"></div>
     <div id="filters">
       <input type="search" id="q" placeholder="Search name, regt no, rank…">
       <select id="fd"><option value="">All training dates</option></select>
       <select id="fc"><option value="">All coys</option></select>
-      <span class="pm">Pass mark <input id="pass" type="number" min="0" max="100" value="60"> / 100</span>
+      <span class="pm">Pass mark <input id="pass" type="number" min="0" value="200"> points</span>
     </div>
     <div class="wrap"><table>
-      <thead><tr><th>#</th><th>Regt no</th><th>Rank</th><th>Name</th><th>Coy</th><th>Training date</th><th>Marks /100</th><th>Result</th><th>Remarks</th></tr></thead>
+      <thead><tr><th>#</th><th>Regt no</th><th>Rank</th><th>Name</th><th>Coy</th><th>Training date</th><th>Score</th><th>Result</th><th>Remarks</th></tr></thead>
       <tbody id="rows"></tbody>
     </table></div>
   </main>
@@ -133,10 +147,90 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
       key = k; people = JSON.parse(td.decode(pt));
       $('p').value = '';
       await loadMarks();
+      token = await loadToken();
+      if (token) { try { const rm = await fetchRemote(); marks = Object.assign({}, marks, rm); status('Online · same marks on every computer', 'ok'); }
+                   catch (e) { status('Could not reach online records — showing this computer\'s copy.', 'warn'); } }
       start();
+      if (!token) { $('conn').hidden = false; status('Online saving not connected yet', 'warn'); }
+      clearInterval(window.__pull); window.__pull = setInterval(pullRemote, 20000);
     } catch (err) {
       $('err').textContent = 'Wrong username or password.';
     } finally { $('go').disabled = false; $('go').textContent = 'Sign in'; }
+  };
+
+  /* ---- marks online: encrypted, in the repo's "records" branch ---------- */
+  const REPO = 'Kavieo/morcha-night-vigil', BR = 'records', MF = 'data/marks.enc.json', TF = 'data/token.enc.json';
+  let token = null, remoteSha = null, dirty = new Set(), syncing = false;
+  async function encJSON(obj) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, te.encode(JSON.stringify(obj))));
+    return { iv: tob64(iv), ct: tob64(ct) };
+  }
+  async function decJSON(o) {
+    return JSON.parse(td.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(o.iv) }, key, b64(o.ct))));
+  }
+  const gh = (path, opt) => fetch('https://api.github.com/repos/' + REPO + '/' + path, Object.assign({ cache: 'no-store' }, opt || {}, {
+    headers: Object.assign({ 'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer ' + token }, (opt && opt.headers) || {}) }));
+  const ub64 = str => btoa(unescape(encodeURIComponent(str)));
+  const db64 = str => decodeURIComponent(escape(atob(str.replace(/\n/g, ''))));
+  async function loadToken() {
+    try {
+      const r = await fetch('https://raw.githubusercontent.com/' + REPO + '/' + BR + '/' + TF + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return null;
+      return (await decJSON(await r.json())).t;
+    } catch (e) { return null; }
+  }
+  async function fetchRemote() {
+    const r = await gh('contents/' + MF + '?ref=' + BR);
+    if (r.status === 404) { remoteSha = null; return {}; }
+    if (!r.ok) throw new Error('read ' + r.status);
+    const j = await r.json(); remoteSha = j.sha;
+    return await decJSON(JSON.parse(db64(j.content)));
+  }
+  async function pushRemote() {
+    if (!token || syncing || !dirty.size) return;
+    syncing = true; status('Saving online…', '');
+    try {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const remote = await fetchRemote();
+        const merged = Object.assign({}, remote);
+        for (const id of dirty) merged[id] = marks[id];
+        const body = { message: 'Training records update', branch: BR,
+                       content: ub64(JSON.stringify(await encJSON(merged))) };
+        if (remoteSha) body.sha = remoteSha;
+        const r = await gh('contents/' + MF, { method: 'PUT', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+        if (r.ok) { remoteSha = (await r.json()).content.sha; marks = merged; dirty.clear();
+                    status('Saved online · all computers · ' + new Date().toLocaleTimeString(), 'ok'); break; }
+        if (r.status !== 409 && r.status !== 422) throw new Error('write ' + r.status);
+      }
+    } catch (e) { status('Online save failed (' + e.message + ') — kept on this computer, will retry.', 'warn'); }
+    finally { syncing = false; if (dirty.size) setTimeout(pushRemote, 4000); }
+  }
+  async function pullRemote() {
+    if (!token || syncing || dirty.size) return;
+    const a = document.activeElement; if (a && a.closest && a.closest('#rows')) return;   // don't move what he is typing in
+    try { const prev = remoteSha, m = await fetchRemote();
+          if (remoteSha !== prev) { marks = m; if (marks.__pass) $('pass').value = marks.__pass; render(); saveLocal(); } } catch (e) {}
+  }
+  function status(t, cls) { $('saved').textContent = t; $('saved').className = cls || ''; }
+
+  $('conn').onclick = () => { $('setup').hidden = false; $('tok').focus(); };
+  $('tokNo').onclick = () => { $('setup').hidden = true; };
+  $('tokGo').onclick = async () => {
+    const t = $('tok').value.trim(); if (!t) return;
+    $('tokMsg').textContent = 'Checking…'; $('tokMsg').style.color = 'var(--dim)';
+    try {
+      token = t;
+      const chk = await gh('contents/README.md?ref=' + BR); if (!chk.ok) throw new Error('token cannot read the repository (' + chk.status + ')');
+      const enc = await encJSON({ t });
+      let sha = null; const ex = await gh('contents/' + TF + '?ref=' + BR); if (ex.ok) sha = (await ex.json()).sha;
+      const body = { message: 'Connect training records', branch: BR, content: ub64(JSON.stringify(enc)) }; if (sha) body.sha = sha;
+      const w = await gh('contents/' + TF, { method: 'PUT', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
+      if (!w.ok) throw new Error('token cannot write to the repository (' + w.status + ') — give it Contents: Read and write');
+      $('tok').value = ''; $('setup').hidden = true; $('conn').hidden = true;
+      for (const id in marks) dirty.add(id);
+      status('Connected — saving online…', 'ok'); pushRemote();
+    } catch (e) { token = null; $('tokMsg').textContent = e.message; $('tokMsg').style.color = 'var(--red)'; }
   };
 
   /* ---- marks: encrypted on this computer ---- */
@@ -147,17 +241,17 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
       if (s) marks = JSON.parse(td.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(s.iv) }, key, b64(s.ct))));
     } catch (e) { marks = {}; }
   }
+  async function saveLocal() {
+    try { localStorage.setItem(STORE, JSON.stringify(await encJSON(marks))); } catch (e) {}
+  }
   let saveT = null;
   function saveMarks() {
     clearTimeout(saveT);
     saveT = setTimeout(async () => {
-      try {
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, te.encode(JSON.stringify(marks))));
-        localStorage.setItem(STORE, JSON.stringify({ iv: tob64(iv), ct: tob64(ct) }));
-        $('saved').textContent = 'Saved on this computer · ' + new Date().toLocaleTimeString();
-      } catch (e) { $('saved').textContent = 'Could not save on this browser — use Export to Excel.'; }
-    }, 300);
+      await saveLocal();
+      if (token) pushRemote();
+      else status('Saved on this computer only · ' + new Date().toLocaleTimeString(), 'warn');
+    }, 900);
   }
 
   /* ---- view ---- */
@@ -172,7 +266,7 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
     $('fd').innerHTML = '<option value="">All training dates</option>' + dates.map(d => '<option value="' + d + '">' + fmt(d) + '</option>').join('');
     const coys = [...new Set(people.map(p => p.coy).filter(Boolean))].sort();
     $('fc').innerHTML = '<option value="">All coys</option>' + coys.map(c => '<option>' + esc(c) + '</option>').join('');
-    const pm = localStorage.getItem('morcha.passmark'); if (pm) $('pass').value = pm;
+    if (marks.__pass) $('pass').value = marks.__pass;
     render(); armIdle();
   }
 
@@ -191,7 +285,7 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
       ['Marks entered', withM.length + ' / ' + people.length],
       ['Passed', withM.length ? pass + ' (' + Math.round(pass * 100 / withM.length) + '%)' : '—'],
       ['Failed', withM.length ? (withM.length - pass) : '—'],
-      ['Average marks', avg === null ? '—' : avg.toFixed(1)]
+      ['Average score', avg === null ? '—' : avg.toFixed(1)]
     ].map(([l, v]) => '<div class="st"><span>' + l + '</span><b>' + v + '</b></div>').join('');
   }
 
@@ -206,7 +300,7 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
       const mk = marks[p.regt] || {}, r = result(mk.m);
       html += '<tr data-r="' + esc(p.regt) + '"><td>' + (++n) + '</td><td class="mono">' + esc(p.regt) + '</td><td>' + esc(p.rank) +
         '</td><td><b>' + esc(p.name) + '</b></td><td>' + esc(p.coy) + '</td><td class="mono">' + fmt(p.date) +
-        '</td><td><input class="mk" type="number" min="0" max="100" step="1" value="' + esc(mk.m == null ? '' : mk.m) + '" placeholder="—"></td>' +
+        '</td><td><input class="mk" type="number" step="1" value="' + esc(mk.m == null ? '' : mk.m) + '" placeholder="—"></td>' +
         '<td class="res ' + (r === 'PASS' ? 'p' : r === 'FAIL' ? 'f' : 'n') + '">' + (r || 'Not entered') + '</td>' +
         '<td><input class="rm" value="' + esc(mk.r || p.remarks || '') + '" placeholder="Remarks"></td></tr>';
     }
@@ -216,9 +310,9 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
 
   $('rows').addEventListener('input', e => {
     const tr = e.target.closest('tr[data-r]'); if (!tr) return;
-    const id = tr.getAttribute('data-r'); marks[id] = marks[id] || {};
+    const id = tr.getAttribute('data-r'); marks[id] = marks[id] || {}; dirty.add(id);
     if (e.target.classList.contains('mk')) {
-      let v = e.target.value; if (v !== '') v = Math.max(0, Math.min(100, +v));
+      let v = e.target.value; if (v !== '') v = Math.round(+v);
       marks[id].m = v;
       const r = result(v), c = tr.querySelector('.res');
       c.className = 'res ' + (r === 'PASS' ? 'p' : r === 'FAIL' ? 'f' : 'n'); c.textContent = r || 'Not entered';
@@ -227,12 +321,12 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
     saveMarks();
   });
   ['q', 'fd', 'fc'].forEach(id => $(id).addEventListener('input', render));
-  $('pass').addEventListener('input', () => { localStorage.setItem('morcha.passmark', $('pass').value); render(); });
+  $('pass').addEventListener('input', () => { marks.__pass = $('pass').value; dirty.add('__pass'); render(); saveMarks(); });
 
   /* ---- Excel ---- */
   const csvCell = v => { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
   $('exp').onclick = () => {
-    const head = ['SL', 'REGT NO', 'RANK', 'NAME', 'COY', 'TRAINING DATE', 'MARKS', 'RESULT', 'REMARKS'];
+    const head = ['SL', 'REGT NO', 'RANK', 'NAME', 'COY', 'TRAINING DATE', 'SCORE', 'RESULT', 'REMARKS'];
     const lines = [head.join(',')];
     filtered().forEach((p, i) => { const mk = marks[p.regt] || {};
       lines.push([i + 1, '\t' + p.regt, p.rank, p.name, p.coy, fmt(p.date), mk.m == null ? '' : mk.m,
@@ -259,7 +353,7 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
     for (const r of rows.slice(1)) {
       const id = (r[ir] || '').replace(/\D/g, ''); const p = people.find(x => x.regt.replace(/\D/g, '') === id);
       if (!p || r[im] === '' || isNaN(+r[im])) continue;
-      marks[p.regt] = marks[p.regt] || {}; marks[p.regt].m = Math.max(0, Math.min(100, +r[im]));
+      marks[p.regt] = marks[p.regt] || {}; marks[p.regt].m = Math.round(+r[im]); dirty.add(p.regt);
       if (ik >= 0 && r[ik]) marks[p.regt].r = r[ik]; n++;
     }
     saveMarks(); render(); alert('Imported marks for ' + n + ' personnel.');
@@ -267,7 +361,7 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
   };
 
   /* ---- session: sign out, and automatically after 15 minutes idle ---- */
-  function signOut() { key = null; people = []; marks = {}; $('rows').innerHTML = ''; $('stats').innerHTML = '';
+  function signOut() { key = null; token = null; remoteSha = null; dirty = new Set(); clearInterval(window.__pull); people = []; marks = {}; $('rows').innerHTML = ''; $('stats').innerHTML = '';
     $('app').style.display = 'none'; $('login').style.display = 'flex'; $('u').focus(); }
   $('out').onclick = signOut;
   function armIdle() { clearTimeout(idle); idle = setTimeout(signOut, 15 * 60 * 1000); }
