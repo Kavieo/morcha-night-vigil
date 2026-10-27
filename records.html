@@ -17,8 +17,8 @@
 html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--sans)}
 button,input,select{font:inherit;color:inherit}
 button{cursor:pointer}
+a{color:var(--amber)}
 
-/* ---- login ---- */
 #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
 #loginBox{width:min(380px,100%);background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:28px;display:flex;flex-direction:column;gap:12px}
 .brand{font-weight:800;letter-spacing:.14em;font-size:13px}
@@ -28,60 +28,72 @@ button{cursor:pointer}
 label.f{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--dim);font-weight:600;letter-spacing:.04em}
 label.f input{height:44px;border-radius:9px;border:1px solid var(--line2);background:var(--panel2);padding:0 12px;font-size:15px}
 label.f input:focus{outline:2px solid var(--amber);outline-offset:-1px}
+label.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text)}
+label.chk input{width:18px;height:18px;accent-color:var(--amber)}
 #go{height:46px;border-radius:9px;border:0;background:var(--amber);color:#111;font-weight:800;font-size:15px;margin-top:6px}
 #go:disabled{opacity:.6;cursor:wait}
 #err{color:var(--red);font-size:13px;min-height:18px}
 .lock{color:var(--faint);font-size:11.5px;margin-top:6px}
 
-/* ---- records ---- */
 #app{display:none}
-#top{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+#top{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 #top h2{margin:0;font-size:17px}
 #top .sp{flex:1}
 .btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);font-weight:600;font-size:13px}
 .btn.pri{background:var(--amber);color:#111;border-color:var(--amber)}
-main{padding:16px 20px 60px;max-width:1280px;margin:0 auto}
+.btn.sm{height:28px;padding:0 10px;font-size:12px}
+.btn.del{color:var(--red)}
+.btn.save{background:var(--grn);color:#052e16;border-color:var(--grn);font-weight:800;min-width:96px}
+.btn.save.dirty{background:var(--amber);border-color:var(--amber);color:#111}
+#saved{color:var(--dim);font-size:12px}
+#saved.ok{color:var(--grn)} #saved.warn{color:var(--amber)}
+main{padding:16px 20px 60px;max-width:1320px;margin:0 auto}
+.tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 14px;font-weight:700;color:var(--dim)}
+.tabs button.on{color:var(--text);border-bottom-color:var(--amber)}
 #stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
 .st{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
 .st b{display:block;font:700 22px var(--mono)}
 .st span{color:var(--dim);font-size:12px;font-weight:600;letter-spacing:.04em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.card h3{margin:0 0 10px;font-size:14px}
+.addrow{display:grid;grid-template-columns:2fr 1.2fr 1fr .8fr 1.1fr auto;gap:8px;align-items:end}
+.addrow label{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--dim);text-transform:uppercase}
+.addrow input{height:36px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);padding:0 10px;text-transform:none;letter-spacing:0;font-weight:500;font-size:14px}
+#addErr{color:var(--red);font-size:12.5px;margin-top:6px;min-height:0}
 #filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 #filters input,#filters select{height:36px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);padding:0 10px}
 #filters input[type=search]{flex:1;min-width:200px}
 #filters .pm{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:12.5px}
-#filters .pm input{width:64px}
+#filters .pm input{width:72px}
 .wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
-table{width:100%;border-collapse:collapse;min-width:860px}
+table{width:100%;border-collapse:collapse;min-width:900px}
 th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
 th{position:sticky;top:0;background:var(--panel2);font-size:11.5px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase}
 tr.grp td{background:#0f1513;color:var(--amber);font-weight:700;font-size:12.5px;letter-spacing:.04em}
 td.mono{font-family:var(--mono);font-size:13px}
 td input{height:32px;border-radius:7px;border:1px solid var(--line2);background:var(--panel2);padding:0 8px;width:100%}
-td input.mk{width:76px;text-align:right;font-family:var(--mono)}
+td input.mk{width:84px;text-align:right;font-family:var(--mono)}
+td input.sm{width:120px}
 .res{font-weight:800;font-size:12px;letter-spacing:.06em}
 .res.p{color:var(--grn)} .res.f{color:var(--red)} .res.n{color:var(--faint);font-weight:600}
-#saved{color:var(--dim);font-size:12px}
-#saved.ok{color:var(--grn)} #saved.warn{color:var(--amber)}
-#setup{background:var(--panel);border:1px solid var(--amber);border-radius:10px;padding:14px 16px;margin-bottom:14px}
-#setup p{color:var(--dim);margin:6px 0 10px;font-size:13px}
-#setup .row{display:flex;gap:8px;flex-wrap:wrap}
-#setup input{flex:1;min-width:240px;height:36px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);padding:0 10px;font-family:var(--mono)}
-#tokMsg{margin-top:8px;font-size:13px}
-@media (max-width:700px){ main{padding:12px} #top{padding:10px 12px} }
+.tag{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--amber);border:1px solid var(--amber);border-radius:5px;padding:1px 5px;margin-left:6px}
+@media (max-width:760px){ main{padding:12px} #top{padding:10px 12px} .addrow{grid-template-columns:1fr 1fr} }
 </style>
 </head>
 <body>
 
 <div id="login">
-  <form id="loginBox" autocomplete="off">
+  <form id="loginBox" autocomplete="on">
     <div class="brand">MORCHA<small>125 Bn BSF · Night observation simulator</small></div>
     <h1>Training records</h1>
-    <p>Authorised staff only. Sign in to open the training history.</p>
-    <label class="f">Username<input id="u" autocomplete="username" spellcheck="false" required></label>
-    <label class="f">Password<input id="p" type="password" autocomplete="current-password" required></label>
+    <p>Authorised staff only.</p>
+    <label class="f">Username<input id="u" name="username" autocomplete="username" spellcheck="false" required></label>
+    <label class="f">Password<input id="p" name="password" type="password" autocomplete="current-password" required></label>
+    <label class="chk"><input id="rem" type="checkbox"> Keep me signed in on this computer</label>
     <div id="err"></div>
     <button id="go" type="submit">Sign in</button>
-    <div class="lock">The record list is encrypted (AES-256). It can only be opened with the correct username and password.</div>
+    <div class="lock">All records are encrypted (AES-256) and open only with the correct username and password.</div>
   </form>
 </div>
 
@@ -89,253 +101,235 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
   <div id="top">
     <h2>Training History 2026</h2>
     <span id="saved"></span>
-    <button class="btn" id="conn" hidden>Connect online saving</button>
     <span class="sp"></span>
-    <button class="btn" id="imp">Import marks (CSV)</button>
+    <a class="btn" href="index.html" style="display:inline-flex;align-items:center;text-decoration:none;color:var(--text)">Main page</a>
+    <button class="btn save" id="save">Save</button>
+    <button class="btn" id="imp">Import scores (CSV)</button>
     <button class="btn pri" id="exp">Export to Excel</button>
     <button class="btn" id="out">Sign out</button>
     <input id="impFile" type="file" accept=".csv,text/csv" hidden>
   </div>
   <main>
-    <div id="setup" hidden>
-      <b>One-time setup: save marks online for every computer.</b>
-      <p>Paste a GitHub fine-grained access token for the <code>Kavieo/morcha-night-vigil</code> repository with <b>Contents: Read and write</b>.
-      It is encrypted with this login and stored with the records — after this, signing in on any computer loads and saves the same marks.</p>
-      <div class="row"><input id="tok" type="password" placeholder="github_pat_…" autocomplete="off" spellcheck="false"><button class="btn pri" id="tokGo">Connect</button><button class="btn" id="tokNo">Cancel</button></div>
-      <div id="tokMsg"></div>
-    </div>
-    <div id="stats"></div>
-    <div id="filters">
-      <input type="search" id="q" placeholder="Search name, regt no, rank…">
-      <select id="fd"><option value="">All training dates</option></select>
-      <select id="fc"><option value="">All coys</option></select>
-      <span class="pm">Pass mark <input id="pass" type="number" min="0" value="200"> points</span>
-    </div>
-    <div class="wrap"><table>
-      <thead><tr><th>#</th><th>Regt no</th><th>Rank</th><th>Name</th><th>Coy</th><th>Training date</th><th>Score</th><th>Result</th><th>Remarks</th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table></div>
+    <div class="tabs"><button id="tabP" class="on">People</button><button id="tabS">Simulator sessions</button></div>
+
+    <section id="secP">
+      <div id="stats"></div>
+      <div class="card">
+        <h3>Add a person</h3>
+        <div class="addrow">
+          <label>Name *<input id="a_name" autocomplete="off" spellcheck="false"></label>
+          <label>Regt no<input id="a_regt" autocomplete="off"></label>
+          <label>Rank<input id="a_rank" autocomplete="off" placeholder="CT, HC…"></label>
+          <label>Coy<input id="a_coy" autocomplete="off"></label>
+          <label>Training date<input id="a_date" type="date"></label>
+          <button class="btn pri" id="a_go" style="height:36px">Add</button>
+        </div>
+        <div id="addErr"></div>
+      </div>
+      <div id="filters">
+        <input type="search" id="q" placeholder="Search name, regt no, rank…">
+        <select id="fd"><option value="">All training dates</option></select>
+        <select id="fc"><option value="">All coys</option></select>
+        <span class="pm">Pass mark <input id="pass" type="number" min="0" value="200"> points</span>
+      </div>
+      <div class="wrap"><table>
+        <thead><tr><th>#</th><th>Regt no</th><th>Rank</th><th>Name</th><th>Coy</th><th>Training date</th><th>Score</th><th>Result</th><th>Remarks</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+    </section>
+
+    <section id="secS" hidden>
+      <p style="color:var(--dim);margin:0 0 12px">Every test run on the simulator is saved here by itself. Fill in a missing regt no or rank at any time.</p>
+      <div class="wrap"><table>
+        <thead><tr><th>Date</th><th>Time</th><th>Name</th><th>Regt no</th><th>Rank</th><th>Length</th><th>Score</th><th>Result</th><th>Detected</th><th>False alarms</th><th>Breaches</th><th></th></tr></thead>
+        <tbody id="srows"></tbody>
+      </table></div>
+    </section>
   </main>
 </div>
 
+<script src="src/store.js"></script>
 <script>
-/* Training records — the roster is shipped ENCRYPTED (data/roster.enc.json).
-   The key is derived from the username and password (PBKDF2-SHA256, 600k
-   rounds) and never leaves the browser. Marks entered here are stored on this
-   computer, encrypted with the same key, and can be exported to Excel. */
 (function () {
   const $ = id => document.getElementById(id);
-  const te = new TextEncoder(), td = new TextDecoder();
-  const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-  const tob64 = u => btoa(String.fromCharCode(...u));
-  const STORE = 'morcha.marks.v1';
-  let key = null, people = [], marks = {}, idle = null;
-
-  async function deriveKey(user, pass, salt, iter) {
-    const base = await crypto.subtle.importKey('raw', te.encode(user.toLowerCase() + ':' + pass), 'PBKDF2', false, ['deriveKey']);
-    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' },
-      base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-  }
-
-  $('loginBox').onsubmit = async e => {
-    e.preventDefault();
-    $('err').textContent = ''; $('go').disabled = true; $('go').textContent = 'Checking…';
-    try {
-      const enc = await (await fetch('data/roster.enc.json?v=' + Date.now(), { cache: 'no-store' })).json();
-      const k = await deriveKey($('u').value.trim(), $('p').value, b64(enc.salt), enc.iter);
-      const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(enc.iv) }, k, b64(enc.ct));
-      key = k; people = JSON.parse(td.decode(pt));
-      $('p').value = '';
-      await loadMarks();
-      token = await loadToken();
-      if (token) { try { const rm = await fetchRemote(); marks = Object.assign({}, marks, rm); status('Online · same marks on every computer', 'ok'); }
-                   catch (e) { status('Could not reach online records — showing this computer\'s copy.', 'warn'); } }
-      start();
-      if (!token) { $('conn').hidden = false; status('Online saving not connected yet', 'warn'); }
-      clearInterval(window.__pull); window.__pull = setInterval(pullRemote, 20000);
-    } catch (err) {
-      $('err').textContent = 'Wrong username or password.';
-    } finally { $('go').disabled = false; $('go').textContent = 'Sign in'; }
-  };
-
-  /* ---- marks online: encrypted, in the repo's "records" branch ---------- */
-  const REPO = 'Kavieo/morcha-night-vigil', BR = 'records', MF = 'data/marks.enc.json', TF = 'data/token.enc.json';
-  let token = null, remoteSha = null, dirty = new Set(), syncing = false;
-  async function encJSON(obj) {
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, te.encode(JSON.stringify(obj))));
-    return { iv: tob64(iv), ct: tob64(ct) };
-  }
-  async function decJSON(o) {
-    return JSON.parse(td.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(o.iv) }, key, b64(o.ct))));
-  }
-  const gh = (path, opt) => fetch('https://api.github.com/repos/' + REPO + '/' + path, Object.assign({ cache: 'no-store' }, opt || {}, {
-    headers: Object.assign({ 'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer ' + token }, (opt && opt.headers) || {}) }));
-  const ub64 = str => btoa(unescape(encodeURIComponent(str)));
-  const db64 = str => decodeURIComponent(escape(atob(str.replace(/\n/g, ''))));
-  async function loadToken() {
-    try {
-      const r = await fetch('https://raw.githubusercontent.com/' + REPO + '/' + BR + '/' + TF + '?t=' + Date.now(), { cache: 'no-store' });
-      if (!r.ok) return null;
-      return (await decJSON(await r.json())).t;
-    } catch (e) { return null; }
-  }
-  async function fetchRemote() {
-    const r = await gh('contents/' + MF + '?ref=' + BR);
-    if (r.status === 404) { remoteSha = null; return {}; }
-    if (!r.ok) throw new Error('read ' + r.status);
-    const j = await r.json(); remoteSha = j.sha;
-    return await decJSON(JSON.parse(db64(j.content)));
-  }
-  async function pushRemote() {
-    if (!token || syncing || !dirty.size) return;
-    syncing = true; status('Saving online…', '');
-    try {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const remote = await fetchRemote();
-        const merged = Object.assign({}, remote);
-        for (const id of dirty) merged[id] = marks[id];
-        const body = { message: 'Training records update', branch: BR,
-                       content: ub64(JSON.stringify(await encJSON(merged))) };
-        if (remoteSha) body.sha = remoteSha;
-        const r = await gh('contents/' + MF, { method: 'PUT', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
-        if (r.ok) { remoteSha = (await r.json()).content.sha; marks = merged; dirty.clear();
-                    status('Saved online · all computers · ' + new Date().toLocaleTimeString(), 'ok'); break; }
-        if (r.status !== 409 && r.status !== 422) throw new Error('write ' + r.status);
-      }
-    } catch (e) { status('Online save failed (' + e.message + ') — kept on this computer, will retry.', 'warn'); }
-    finally { syncing = false; if (dirty.size) setTimeout(pushRemote, 4000); }
-  }
-  async function pullRemote() {
-    if (!token || syncing || dirty.size) return;
-    const a = document.activeElement; if (a && a.closest && a.closest('#rows')) return;   // don't move what he is typing in
-    try { const prev = remoteSha, m = await fetchRemote();
-          if (remoteSha !== prev) { marks = m; if (marks.__pass) $('pass').value = marks.__pass; render(); saveLocal(); } } catch (e) {}
-  }
-  function status(t, cls) { $('saved').textContent = t; $('saved').className = cls || ''; }
-
-  $('conn').onclick = () => { $('setup').hidden = false; $('tok').focus(); };
-  $('tokNo').onclick = () => { $('setup').hidden = true; };
-  $('tokGo').onclick = async () => {
-    const t = $('tok').value.trim(); if (!t) return;
-    $('tokMsg').textContent = 'Checking…'; $('tokMsg').style.color = 'var(--dim)';
-    try {
-      token = t;
-      const chk = await gh('contents/README.md?ref=' + BR); if (!chk.ok) throw new Error('token cannot read the repository (' + chk.status + ')');
-      const enc = await encJSON({ t });
-      let sha = null; const ex = await gh('contents/' + TF + '?ref=' + BR); if (ex.ok) sha = (await ex.json()).sha;
-      const body = { message: 'Connect training records', branch: BR, content: ub64(JSON.stringify(enc)) }; if (sha) body.sha = sha;
-      const w = await gh('contents/' + TF, { method: 'PUT', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } });
-      if (!w.ok) throw new Error('token cannot write to the repository (' + w.status + ') — give it Contents: Read and write');
-      $('tok').value = ''; $('setup').hidden = true; $('conn').hidden = true;
-      for (const id in marks) dirty.add(id);
-      status('Connected — saving online…', 'ok'); pushRemote();
-    } catch (e) { token = null; $('tokMsg').textContent = e.message; $('tokMsg').style.color = 'var(--red)'; }
-  };
-
-  /* ---- marks: encrypted on this computer ---- */
-  async function loadMarks() {
-    marks = {};
-    try {
-      const s = JSON.parse(localStorage.getItem(STORE) || 'null');
-      if (s) marks = JSON.parse(td.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(s.iv) }, key, b64(s.ct))));
-    } catch (e) { marks = {}; }
-  }
-  async function saveLocal() {
-    try { localStorage.setItem(STORE, JSON.stringify(await encJSON(marks))); } catch (e) {}
-  }
-  let saveT = null;
-  function saveMarks() {
-    clearTimeout(saveT);
-    saveT = setTimeout(async () => {
-      await saveLocal();
-      if (token) pushRemote();
-      else status('Saved on this computer only · ' + new Date().toLocaleTimeString(), 'warn');
-    }, 900);
-  }
-
-  /* ---- view ---- */
-  const fmt = d => { const [y, m, dd] = d.split('-'); return dd + '.' + m + '.' + y; };
+  const fmt = d => { if (!d) return '—'; const [y, m, dd] = d.split('-'); return dd + '.' + m + '.' + y; };
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const clk = x => { x = Math.round(x || 0); return String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0'); };
+  const today = () => { const d = new Date(), p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
   const passMark = () => +$('pass').value || 0;
   const result = m => m === '' || m == null || isNaN(+m) ? null : (+m >= passMark() ? 'PASS' : 'FAIL');
 
-  function start() {
-    $('login').style.display = 'none'; $('app').style.display = 'block';
-    const dates = [...new Set(people.map(p => p.date))].sort();
-    $('fd').innerHTML = '<option value="">All training dates</option>' + dates.map(d => '<option value="' + d + '">' + fmt(d) + '</option>').join('');
-    const coys = [...new Set(people.map(p => p.coy).filter(Boolean))].sort();
-    $('fc').innerHTML = '<option value="">All coys</option>' + coys.map(c => '<option>' + esc(c) + '</option>').join('');
-    if (marks.__pass) $('pass').value = marks.__pass;
-    render(); armIdle();
+  /* ---- sign in ---- */
+  $('loginBox').onsubmit = async e => {
+    e.preventDefault();
+    $('err').textContent = ''; $('go').disabled = true; $('go').textContent = 'Checking…';
+    try { await Store.login($('u').value, $('p').value, $('rem').checked); $('p').value = ''; start(); }
+    catch (err) { $('err').textContent = 'Wrong username or password.'; }
+    finally { $('go').disabled = false; $('go').textContent = 'Sign in'; }
+  };
+  Store.resume().then(ok => { if (ok) start(); });
+
+  Store.on(() => { const s = Store.status(); $('saved').textContent = s.text; $('saved').className = s.cls; });
+
+  /* ---- data ---- */
+  /* One list: the roster (score kept under the regt no) + people added here
+     (kept under "p:<id>", score inside the same entry). */
+  function people() {
+    const all = Store.all();
+    const rows = Store.roster().map(p => ({ id: p.regt, p, sc: all[p.regt] || {}, added: false }));
+    for (const [k, v] of Object.entries(all)) if (k.startsWith('p:')) rows.push({ id: k, p: v, sc: v, added: true });
+    return rows;
+  }
+  function sessions() {
+    return Object.entries(Store.all()).filter(([k]) => k.startsWith('s:')).map(([k, v]) => Object.assign({ id: k }, v))
+      .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
   }
 
+  let started = false;
+  function start() {
+    if (started) return; started = true;
+    $('login').style.display = 'none'; $('app').style.display = 'block';
+    $('a_date').value = today();
+    if (Store.get('__pass')) $('pass').value = Store.get('__pass');
+    refreshFilters(); render(); renderS(); armIdle();
+  }
+  function refreshFilters() {
+    const rows = people(), keepD = $('fd').value, keepC = $('fc').value;
+    const dates = [...new Set(rows.map(r => r.p.date).filter(Boolean))].sort();
+    $('fd').innerHTML = '<option value="">All training dates</option>' + dates.map(d => '<option value="' + d + '">' + fmt(d) + '</option>').join('');
+    const coys = [...new Set(rows.map(r => r.p.coy).filter(Boolean))].sort();
+    $('fc').innerHTML = '<option value="">All coys</option>' + coys.map(c => '<option>' + esc(c) + '</option>').join('');
+    $('fd').value = keepD; $('fc').value = keepC;
+  }
   function filtered() {
     const q = $('q').value.trim().toLowerCase(), d = $('fd').value, c = $('fc').value;
-    return people.filter(p => (!d || p.date === d) && (!c || p.coy === c) &&
-      (!q || (p.name + ' ' + p.regt + ' ' + p.rank).toLowerCase().includes(q)));
+    return people().filter(r => (!d || r.p.date === d) && (!c || r.p.coy === c) &&
+      (!q || (r.p.name + ' ' + (r.p.regt || '') + ' ' + (r.p.rank || '')).toLowerCase().includes(q)))
+      .sort((a, b) => (a.p.date || '').localeCompare(b.p.date || ''));
   }
-
   function stats() {
-    const withM = people.filter(p => marks[p.regt] && marks[p.regt].m !== '' && marks[p.regt].m != null);
-    const pass = withM.filter(p => result(marks[p.regt].m) === 'PASS').length;
-    const avg = withM.length ? (withM.reduce((a, p) => a + (+marks[p.regt].m), 0) / withM.length) : null;
+    const rows = people(), withM = rows.filter(r => r.sc.m !== '' && r.sc.m != null);
+    const pass = withM.filter(r => result(r.sc.m) === 'PASS').length;
+    const avg = withM.length ? withM.reduce((a, r) => a + (+r.sc.m), 0) / withM.length : null;
     $('stats').innerHTML = [
-      ['Trained in 2026', people.length],
-      ['Marks entered', withM.length + ' / ' + people.length],
+      ['Trained in 2026', rows.length], ['Scores entered', withM.length + ' / ' + rows.length],
       ['Passed', withM.length ? pass + ' (' + Math.round(pass * 100 / withM.length) + '%)' : '—'],
-      ['Failed', withM.length ? (withM.length - pass) : '—'],
-      ['Average score', avg === null ? '—' : avg.toFixed(1)]
+      ['Failed', withM.length ? withM.length - pass : '—'], ['Average score', avg === null ? '—' : avg.toFixed(1)]
     ].map(([l, v]) => '<div class="st"><span>' + l + '</span><b>' + v + '</b></div>').join('');
   }
 
+  /* The table is drawn once; typing only updates its own row, so focus and
+     what you are typing are never thrown away by a redraw. */
   function render() {
     const list = filtered(); let last = null, html = '', n = 0;
-    for (const p of list) {
-      if (p.date !== last) {
-        last = p.date;
-        const cnt = list.filter(x => x.date === p.date).length;
-        html += '<tr class="grp"><td colspan="9">Returned from leave and trained · ' + fmt(p.date) + ' · ' + cnt + ' personnel</td></tr>';
+    for (const r of list) {
+      if (r.p.date !== last) {
+        last = r.p.date;
+        html += '<tr class="grp"><td colspan="10">Returned from leave and trained · ' + fmt(r.p.date) + ' · ' +
+                list.filter(x => x.p.date === r.p.date).length + ' personnel</td></tr>';
       }
-      const mk = marks[p.regt] || {}, r = result(mk.m);
-      html += '<tr data-r="' + esc(p.regt) + '"><td>' + (++n) + '</td><td class="mono">' + esc(p.regt) + '</td><td>' + esc(p.rank) +
-        '</td><td><b>' + esc(p.name) + '</b></td><td>' + esc(p.coy) + '</td><td class="mono">' + fmt(p.date) +
-        '</td><td><input class="mk" type="number" step="1" value="' + esc(mk.m == null ? '' : mk.m) + '" placeholder="—"></td>' +
-        '<td class="res ' + (r === 'PASS' ? 'p' : r === 'FAIL' ? 'f' : 'n') + '">' + (r || 'Not entered') + '</td>' +
-        '<td><input class="rm" value="' + esc(mk.r || p.remarks || '') + '" placeholder="Remarks"></td></tr>';
+      const res = result(r.sc.m);
+      html += '<tr data-id="' + esc(r.id) + '"><td>' + (++n) + '</td><td class="mono">' + (r.added
+          ? '<input class="sm f-regt" value="' + esc(r.p.regt || '') + '" placeholder="Regt no">' : esc(r.p.regt)) +
+        '</td><td>' + esc(r.p.rank) + '</td><td><b>' + esc(r.p.name) + '</b>' + (r.added ? '<span class="tag">ADDED</span>' : '') +
+        '</td><td>' + esc(r.p.coy) + '</td><td class="mono">' + fmt(r.p.date) +
+        '</td><td><input class="mk" type="number" step="1" value="' + esc(r.sc.m == null ? '' : r.sc.m) + '" placeholder="—"></td>' +
+        '<td class="res ' + (res === 'PASS' ? 'p' : res === 'FAIL' ? 'f' : 'n') + '">' + (res || 'Not entered') + '</td>' +
+        '<td><input class="rm" value="' + esc(r.sc.r || r.p.remarks || '') + '" placeholder="Remarks"></td>' +
+        '<td>' + (r.added ? '<button class="btn sm del" data-del="1">Remove</button>' : '') + '</td></tr>';
     }
-    $('rows').innerHTML = html || '<tr><td colspan="9" style="color:var(--dim)">No records match.</td></tr>';
+    $('rows').innerHTML = html || '<tr><td colspan="10" style="color:var(--dim)">No records match.</td></tr>';
     stats();
   }
 
+  const entryFor = id => Object.assign({}, Store.get(id) || {});
   $('rows').addEventListener('input', e => {
-    const tr = e.target.closest('tr[data-r]'); if (!tr) return;
-    const id = tr.getAttribute('data-r'); marks[id] = marks[id] || {}; dirty.add(id);
+    const tr = e.target.closest('tr[data-id]'); if (!tr) return;
+    const id = tr.getAttribute('data-id'), v = entryFor(id);
     if (e.target.classList.contains('mk')) {
-      let v = e.target.value; if (v !== '') v = Math.round(+v);
-      marks[id].m = v;
-      const r = result(v), c = tr.querySelector('.res');
+      v.m = e.target.value === '' ? '' : Math.round(+e.target.value);
+      const r = result(v.m), c = tr.querySelector('.res');
       c.className = 'res ' + (r === 'PASS' ? 'p' : r === 'FAIL' ? 'f' : 'n'); c.textContent = r || 'Not entered';
-      stats();
-    } else if (e.target.classList.contains('rm')) marks[id].r = e.target.value;
-    saveMarks();
+    } else if (e.target.classList.contains('rm')) v.r = e.target.value;
+    else if (e.target.classList.contains('f-regt')) v.regt = e.target.value.trim();
+    Store.set(id, v); stats();
+  });
+  $('rows').addEventListener('click', e => {
+    if (!e.target.getAttribute('data-del')) return;
+    const tr = e.target.closest('tr[data-id]'), id = tr.getAttribute('data-id'), v = Store.get(id);
+    if (!confirm('Remove ' + (v && v.name) + ' from the records?')) return;
+    Store.set(id, undefined); refreshFilters(); render();
   });
   ['q', 'fd', 'fc'].forEach(id => $(id).addEventListener('input', render));
-  $('pass').addEventListener('input', () => { marks.__pass = $('pass').value; dirty.add('__pass'); render(); saveMarks(); });
+  $('pass').addEventListener('input', () => { Store.set('__pass', $('pass').value); render(); renderS(); });
+
+  /* ---- add a person: saved permanently in the online database ---- */
+  $('a_go').onclick = () => {
+    const name = $('a_name').value.trim().toUpperCase();
+    if (!name) { $('addErr').textContent = 'Enter a name.'; $('a_name').focus(); return; }
+    const regt = $('a_regt').value.trim();
+    if (regt && people().some(r => (r.p.regt || '') === regt)) { $('addErr').textContent = 'Regt no ' + regt + ' is already in the list.'; return; }
+    $('addErr').textContent = '';
+    Store.set('p:' + Store.uid(), { name, regt, rank: $('a_rank').value.trim().toUpperCase(),
+      coy: $('a_coy').value.trim().toUpperCase(), date: $('a_date').value || today(), remarks: '' });
+    ['a_name', 'a_regt', 'a_rank', 'a_coy'].forEach(id => $(id).value = '');
+    refreshFilters(); render(); $('a_name').focus();
+  };
+
+  /* ---- simulator sessions ---- */
+  function renderS() {
+    const list = sessions();
+    $('srows').innerHTML = list.map(s => '<tr data-id="' + esc(s.id) + '"><td class="mono">' + fmt(s.date) + '</td><td class="mono">' + esc(s.time) +
+      '</td><td><input class="s-name" value="' + esc(s.name) + '"></td><td><input class="sm s-regt" value="' + esc(s.regt) + '" placeholder="Add later">' +
+      '</td><td><input class="sm s-rank" value="' + esc(s.rank) + '" placeholder="—"></td><td class="mono">' + clk(s.duration) +
+      '</td><td class="mono"><b>' + esc(s.score) + '</b></td><td class="res ' + (s.score >= passMark() ? 'p">PASS' : 'f">FAIL') +
+      '</td><td>' + esc(s.detected) + '</td><td>' + esc(s.falseAlarms) + '</td><td>' + esc(s.breaches) +
+      '</td><td><button class="btn sm del" data-sdel="1">Delete</button></td></tr>').join('') ||
+      '<tr><td colspan="12" style="color:var(--dim)">No simulator sessions yet. They appear here when a test finishes.</td></tr>';
+  }
+  $('srows').addEventListener('input', e => {
+    const tr = e.target.closest('tr[data-id]'); if (!tr) return;
+    const id = tr.getAttribute('data-id'), v = Object.assign({}, Store.get(id));
+    if (e.target.classList.contains('s-name')) v.name = e.target.value.toUpperCase();
+    if (e.target.classList.contains('s-regt')) v.regt = e.target.value.trim();
+    if (e.target.classList.contains('s-rank')) v.rank = e.target.value.toUpperCase();
+    Store.set(id, v);
+  });
+  $('srows').addEventListener('click', e => {
+    if (!e.target.getAttribute('data-sdel')) return;
+    const id = e.target.closest('tr[data-id]').getAttribute('data-id');
+    if (confirm('Delete this session record?')) { Store.set(id, undefined); renderS(); }
+  });
+  $('tabP').onclick = () => { $('tabP').className = 'on'; $('tabS').className = ''; $('secP').hidden = false; $('secS').hidden = true; };
+  $('tabS').onclick = () => { $('tabS').className = 'on'; $('tabP').className = ''; $('secS').hidden = false; $('secP').hidden = true; renderS(); };
+
+  /* someone else saved on another computer: redraw, but never under the cursor */
+  Store.on(() => {
+    if (!started || !Store.ready()) return;
+    const a = document.activeElement; if (a && a.closest && a.closest('#rows, #srows, .addrow')) return;
+    if (Store.get('__pass') && document.activeElement !== $('pass')) $('pass').value = Store.get('__pass');
+    render(); renderS();
+  });
 
   /* ---- Excel ---- */
   const csvCell = v => { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-  $('exp').onclick = () => {
-    const head = ['SL', 'REGT NO', 'RANK', 'NAME', 'COY', 'TRAINING DATE', 'SCORE', 'RESULT', 'REMARKS'];
-    const lines = [head.join(',')];
-    filtered().forEach((p, i) => { const mk = marks[p.regt] || {};
-      lines.push([i + 1, '\t' + p.regt, p.rank, p.name, p.coy, fmt(p.date), mk.m == null ? '' : mk.m,
-                  result(mk.m) || '', mk.r || p.remarks || ''].map(csvCell).join(',')); });
+  const download = (name, lines) => {
     const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = 'MORCHA_Training_History_2026.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
-  /* Import: any CSV with a REGT NO column and a MARKS column (and optional REMARKS). */
+  $('exp').onclick = () => {
+    if (!$('secS').hidden) {
+      const lines = [['DATE', 'TIME', 'NAME', 'REGT NO', 'RANK', 'LENGTH', 'SCORE', 'RESULT', 'DETECTED', 'FALSE ALARMS', 'BREACHES'].join(',')];
+      sessions().forEach(s => lines.push([fmt(s.date), s.time, s.name, '\t' + (s.regt || ''), s.rank, clk(s.duration), s.score,
+        s.score >= passMark() ? 'PASS' : 'FAIL', s.detected, s.falseAlarms, s.breaches].map(csvCell).join(',')));
+      return download('MORCHA_Simulator_Sessions.csv', lines);
+    }
+    const lines = [['SL', 'REGT NO', 'RANK', 'NAME', 'COY', 'TRAINING DATE', 'SCORE', 'RESULT', 'REMARKS'].join(',')];
+    filtered().forEach((r, i) => lines.push([i + 1, '\t' + (r.p.regt || ''), r.p.rank, r.p.name, r.p.coy, fmt(r.p.date),
+      r.sc.m == null ? '' : r.sc.m, result(r.sc.m) || '', r.sc.r || r.p.remarks || ''].map(csvCell).join(',')));
+    download('MORCHA_Training_History_2026.csv', lines);
+  };
   $('imp').onclick = () => $('impFile').click();
   $('impFile').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
@@ -347,25 +341,35 @@ td input.mk{width:76px;text-align:right;font-family:var(--mono)}
       out.push(cur); return out.map(s => s.trim());
     });
     const h = rows[0].map(s => s.toUpperCase());
-    const ir = h.findIndex(s => s.includes('REGT')), im = h.findIndex(s => s.includes('MARK')), ik = h.findIndex(s => s.includes('REMARK'));
-    if (ir < 0 || im < 0) { alert('The file needs a "REGT NO" column and a "MARKS" column.'); return; }
+    const ir = h.findIndex(s => s.includes('REGT')), im = h.findIndex(s => s.includes('SCORE') || s.includes('MARK')), ik = h.findIndex(s => s.includes('REMARK'));
+    if (ir < 0 || im < 0) { alert('The file needs a "REGT NO" column and a "SCORE" (or "MARKS") column.'); return; }
     let n = 0;
     for (const r of rows.slice(1)) {
-      const id = (r[ir] || '').replace(/\D/g, ''); const p = people.find(x => x.regt.replace(/\D/g, '') === id);
-      if (!p || r[im] === '' || isNaN(+r[im])) continue;
-      marks[p.regt] = marks[p.regt] || {}; marks[p.regt].m = Math.round(+r[im]); dirty.add(p.regt);
-      if (ik >= 0 && r[ik]) marks[p.regt].r = r[ik]; n++;
+      const id = (r[ir] || '').replace(/\D/g, ''); if (!id || r[im] === '' || isNaN(+r[im])) continue;
+      const row = people().find(x => (x.p.regt || '').replace(/\D/g, '') === id); if (!row) continue;
+      const v = entryFor(row.id); v.m = Math.round(+r[im]); if (ik >= 0 && r[ik]) v.r = r[ik];
+      Store.set(row.id, v); n++;
     }
-    saveMarks(); render(); alert('Imported marks for ' + n + ' personnel.');
-    e.target.value = '';
+    render(); alert('Imported scores for ' + n + ' personnel.'); e.target.value = '';
   };
 
-  /* ---- session: sign out, and automatically after 15 minutes idle ---- */
-  function signOut() { key = null; token = null; remoteSha = null; dirty = new Set(); clearInterval(window.__pull); people = []; marks = {}; $('rows').innerHTML = ''; $('stats').innerHTML = '';
-    $('app').style.display = 'none'; $('login').style.display = 'flex'; $('u').focus(); }
+  /* ---- Save button: push everything now, show when there is unsaved work ---- */
+  $('save').onclick = async () => {
+    const a = document.activeElement; if (a && a.blur) a.blur();
+    $('save').disabled = true; $('save').textContent = 'Saving…';
+    const ok = await Store.saveNow();
+    $('save').disabled = false; $('save').textContent = ok ? 'Saved ✓' : 'Save';
+    setTimeout(() => { if ($('save').textContent === 'Saved ✓') $('save').textContent = 'Save'; }, 2500);
+  };
+  setInterval(() => { $('save').classList.toggle('dirty', Store.pending() > 0); }, 400);
+
+  /* ---- session ---- */
+  let idle = null;
+  function signOut() { Store.flush(); Store.logout(); location.href = 'index.html'; }
   $('out').onclick = signOut;
-  function armIdle() { clearTimeout(idle); idle = setTimeout(signOut, 15 * 60 * 1000); }
-  ['pointerdown', 'keydown', 'scroll'].forEach(ev => addEventListener(ev, () => { if (key) armIdle(); }, { passive: true }));
+  function armIdle() { clearTimeout(idle); try { if (localStorage.getItem('morcha.cred')) return; } catch (e) {} idle = setTimeout(signOut, 30 * 60 * 1000); }
+  ['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, () => { if (Store.ready()) armIdle(); }, { passive: true }));
+  addEventListener('beforeunload', () => { Store.flush(); });
 })();
 </script>
 </body>

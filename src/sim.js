@@ -6,7 +6,7 @@ const Sim = (function () {
 
   let renderer, scene, cam, clock;
   let t = 0, running = false, paused = false, ended = false;
-  let waveIdx = 0, degIdx = -1, waves = null;
+  let waveIdx = 0, degIdx = -1, waves = null, trainee = null;
   let score = 0, fatigue = 0, coi = false, breaches = 0, apprehended = 0, terminal = null;
   let selected = null;
   let events = [], arcTrace = [], missedCues = [];
@@ -141,7 +141,7 @@ function tryLock(el) {
     Contacts.setArc(arc);
     const W2 = DOCTRINE.waves.map(w => {
       const v = Object.assign({}, w);
-      v.t = Math.max(2, w.t + (Math.random() - 0.5) * 14);
+      v.t = Math.max(2, (w.t + (Math.random() - 0.5) * 14) * (T.shiftDuration / 300));
       if (w.route === 'PATROL') {           // enters at one edge of the slit, walks across
         v.x = Math.tan(THREE.MathUtils.degToRad(w.x < 0 ? arc.lo : arc.hi)) * -W.patrolZ;
         return v;
@@ -467,6 +467,25 @@ function tryLock(el) {
     const aar = buildAAR(reason);
     Link.ended(aar);
     HUD.showAAR(aar);
+    saveSession(aar);
+  }
+
+  /* Every finished test goes into the training records by itself. */
+  function saveSession(aar) {
+    if (typeof Store === 'undefined' || !Store.ready() || !trainee) return;
+    const d = new Date(), pad = n => String(n).padStart(2, '0');
+    const ok = claims.filter(c => c.result === 'CORRECT').length;
+    const fa = claims.filter(c => c.result === 'FALSE ALARM').length;
+    Store.set('s:' + Store.uid(), {
+      name: trainee.name, regt: trainee.regt || '', rank: trainee.rank || '',
+      date: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()),
+      time: pad(d.getHours()) + ':' + pad(d.getMinutes()),
+      duration: T.shiftDuration, played: Math.round(t), score: aar.score, passMark: aar.passMark,
+      result: /^PASS/.test(aar.verdict) ? 'PASS' : 'FAIL', verdict: aar.verdict,
+      detected: ok, falseAlarms: fa, breaches: aar.breaches, reason: aar.reason
+    });
+    Store.flush();
+    log('RECORD', 'Result saved to the training records.', 0);
   }
 
   function buildAAR(reason) {
@@ -499,7 +518,14 @@ function tryLock(el) {
   /* ================= frame ============================================== */
   function frame() {
     requestAnimationFrame(frame);
-    step(Math.min(clock.getDelta(), 0.05) * timeScale, true);
+    /* The shift clock follows REAL time. It used to cap each frame at 50 ms,
+       so on a machine drawing fewer than 20 frames a second the clock ran
+       slow (at 12 fps a "5 minute" shift took over 8). Now the full elapsed
+       time is applied, in small sub-steps so movement stays smooth, and only
+       the last sub-step is drawn. */
+    let real = Math.min(clock.getDelta(), 1.0) * timeScale;
+    while (real > 0.05) { step(0.05, false); real -= 0.05; }
+    step(real, true);
   }
 
   /* One tick of the exercise, decoupled from requestAnimationFrame.
@@ -539,7 +565,7 @@ function tryLock(el) {
     /* --- degradation --- */
     for (let i = DOCTRINE.degradation.length - 1; i >= 0; i--) {
       const d = DOCTRINE.degradation[i];
-      if (t >= d.t && degIdx < i) { degIdx = i;
+      if (t >= d.t * (T.shiftDuration / 300) && degIdx < i) { degIdx = i;
         scene.fog.density = d.fog;
         log('MET', d.note, 0);
       }
@@ -733,6 +759,7 @@ function tryLock(el) {
     const deg = DOCTRINE.degradation[Math.max(degIdx,0)];
     return ({
         t, remaining: Math.max(0, T.shiftDuration - t), score: Math.round(score),
+        trainee, duration: T.shiftDuration, running,
         breaches, apprehended, loose: Contacts.hostilesLoose(),
         optic: Optics.mode().id, opticName: Optics.mode().name,
         bearing: +Optics.bearing().toFixed(1), fatigue: +fatigue.toFixed(2),
@@ -775,11 +802,17 @@ function tryLock(el) {
     // (the picture now goes from the frame loop, straight after each render)
   }
 
+  function reloadKeepCode() {
+    const q = new URLSearchParams(location.search); if (Link.code()) q.set('code', Link.code());
+    location.replace(location.pathname + '?' + q.toString());
+  }
+
   /* ================= boot =============================================== */
   function init() {
     /* Load the real geometry before building anything — the world places
        instanced props, so it needs the meshes in hand. */
     const btn = document.getElementById('brief_go');
+    if (typeof Store !== 'undefined') Store.resume().then(ok => { if (ok) HUD.fillNames(); });
     let done = 0, total = Assets.count();
     Assets.load(() => {
       done++;
@@ -787,6 +820,8 @@ function tryLock(el) {
     }).then(() => {
       if (btn) { btn.textContent = 'START — TAKE OVER THE POST'; btn.disabled = false; }
       boot();
+      let auto = null; try { auto = JSON.parse(sessionStorage.getItem('morcha.autostart') || 'null'); sessionStorage.removeItem('morcha.autostart'); } catch (e) {}
+      if (auto) setTimeout(() => api.start(auto), 300);
     });
   }
 
@@ -1014,15 +1049,32 @@ function tryLock(el) {
       case 'timescale':  api.setTimeScale(a.v); break;
       case 'notes':      api.setNotes(a.v); break;
       case 'end':        api.forceEnd(); break;
-      case 'start':      if (!running) api.start(); break;
-      case 'restart':    location.reload(); break;
+      case 'start':      if (!running) api.start(a || {}); break;
+      case 'restart':    reloadKeepCode(); break;
+      case 'newsession':
+        /* a new test from the console: reload clean, keep the session code,
+           and start straight away with the new trainee */
+        if (!running && !ended) { api.start(a || {}); break; }
+        try { sessionStorage.setItem('morcha.autostart', JSON.stringify(a || {})); } catch (e) {}
+        reloadKeepCode(); break;
       case 'trainee':    traineeMode = !!a.v; break;
       case 'picture':    Optics.setPicture(a); break;
     }
   }
 
   const api = {
-    start() { running = true; ended = false; t = 0; Audio.start(); Optics.setMode(0);
+    start(o) {
+      if (running) return;
+      o = o || {};
+      if (o.duration) T.shiftDuration = Math.max(30, Math.min(3600, Math.round(o.duration)));
+      trainee = o.trainee && o.trainee.name ? o.trainee : (trainee || { name: 'TRAINEE', regt: '', rank: '' });
+      waves = null; waveIdx = 0;
+      const b = document.getElementById('brief'); if (b) b.style.display = 'none';
+      const tg = document.getElementById('trtag');
+      if (tg) tg.textContent = [trainee.rank, trainee.name].filter(Boolean).join(' ') + ' · ' + clk(T.shiftDuration);
+      log('SHIFT', 'Session started — ' + trainee.name + (trainee.regt ? ' (' + trainee.regt + ')' : '') +
+          ', ' + clk(T.shiftDuration) + '.', 0);
+      running = true; ended = false; t = 0; Audio.start(); Optics.setMode(0);
               tryLock(document.getElementById('gl')); },
     onBreach, endShift, clk, raiseClaim, resolveClaim, step,
     /* The same entry point the console drives over the link. Exposed so the
@@ -1061,7 +1113,7 @@ function tryLock(el) {
     state(){ return { t, score, breaches, apprehended, running, paused, reveal,
                       contacts: Contacts.all() }; },
     forceEnd(){ endShift('TERMINATED BY INSTRUCTOR'); },
-    restart(){ location.reload(); }
+    restart(){ reloadKeepCode(); }
   };
 
   return Object.assign(api, { init });

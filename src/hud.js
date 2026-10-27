@@ -202,7 +202,30 @@ const HUD = (function () {
       api = a;
       buildInstructor();
       applyTraineeChrome();
-      $('brief_go').onclick = () => { $('brief').style.display = 'none'; api.start(); };
+      $('brief_go').onclick = () => {
+        const name = ($('tr_name') ? $('tr_name').value : 'TRAINEE').trim();
+        if ($('tr_name') && !name) { $('tr_err').textContent = 'Enter the trainee\'s name to start.'; $('tr_name').focus(); return; }
+        const m = +(($('dur_m') || {}).value || 5), sec = +(($('dur_s') || {}).value || 0);
+        const duration = Math.max(30, Math.min(3600, Math.round(m * 60 + sec)));
+        api.start({ duration, trainee: { name: name.toUpperCase(),
+          regt: (($('tr_regt') || {}).value || '').trim(), rank: (($('tr_rank') || {}).value || '').trim().toUpperCase() } });
+      };
+      /* pick a known name: fill his regt no and rank */
+      if ($('tr_name')) $('tr_name').addEventListener('change', () => {
+        const p = HUD.people().find(x => x.name === $('tr_name').value.trim().toUpperCase());
+        if (p) { if (!$('tr_regt').value) $('tr_regt').value = p.regt || ''; if (!$('tr_rank').value) $('tr_rank').value = p.rank || ''; }
+      });
+    },
+    /* everyone known to the records (roster + people added by hand) */
+    people() {
+      if (typeof Store === 'undefined' || !Store.ready()) return [];
+      const added = Object.entries(Store.all()).filter(([k]) => k.startsWith('p:')).map(([, v]) => v);
+      return Store.roster().concat(added);
+    },
+    fillNames() {
+      const dl = $('tr_names'); if (!dl) return;
+      dl.innerHTML = HUD.people().map(p => '<option value="' + String(p.name).replace(/"/g, '') + '">' +
+        [p.rank, p.regt].filter(Boolean).join(' · ') + '</option>').join('');
     },
     toggleInstructor() { instrOpen = !instrOpen; $('instr').style.display = instrOpen ? 'block' : 'none'; },
     setPaused(p) { $('paused').style.display = p ? 'flex' : 'none'; },

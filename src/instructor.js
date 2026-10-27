@@ -30,6 +30,9 @@
   Link.on('state', d => {
     if (d.pendingClaim && d.pendingClaim.id === doneClaim) d.pendingClaim = null;
     S = d; connected = true; lastSeen = Date.now();
+    if (d.trainee) $('ns_now').textContent = (d.running ? 'Running: ' : d.ended ? 'Finished: ' : 'Ready: ') +
+      [d.trainee.rank, d.trainee.name].filter(Boolean).join(' ') + ' · ' + clk(d.duration || 0) +
+      (d.ended ? ' · score ' + d.score + ' (saved to records)' : '');
     paint(); paintClaim(); paintSel();
   });
   Link.on('event', d => logLine('LINK', d.text, 0));
@@ -125,7 +128,7 @@
   }
   (function tick(){ paintOverlay(); requestAnimationFrame(tick); })();   // smooth, every display frame
 
-  $('popTrainee').onclick = () => window.open('index.html' + (Link.code() ? '?code=' + Link.code() : ''), 'morchaTrainee',
+  $('popTrainee').onclick = () => window.open('trainee.html' + (Link.code() ? '?code=' + Link.code() : ''), 'morchaTrainee',
     'width=1440,height=810,menubar=no,toolbar=no,location=no');
   Link.on('claim', c => {
     /* Act on the report the instant it lands — don't wait for the next state. */
@@ -390,7 +393,29 @@
   $('pause').onclick  = () => { const p = !$('pause').classList.contains('on');
     Link.cmd('pause', { v: p }); $('pause').classList.toggle('on', p);
     $('pause').textContent = p ? 'Resume' : 'Pause'; };
-  $('start').onclick  = () => Link.cmd('start');
+  /* ---------- new session: trainee name, optional regt no / rank, length ---- */
+  function startSession() {
+    const name = $('ns_name').value.trim();
+    if (!name) { $('ns_err').textContent = "Enter the trainee's name first."; $('ns_name').focus(); return; }
+    $('ns_err').textContent = '';
+    const dur = Math.max(30, Math.min(3600, (+$('ns_m').value || 0) * 60 + (+$('ns_s').value || 0)));
+    Link.cmd('newsession', { duration: dur, trainee: { name: name.toUpperCase(),
+      regt: $('ns_regt').value.trim(), rank: $('ns_rank').value.trim().toUpperCase() } });
+    logLine('SESSION', 'Started for ' + name.toUpperCase() + ' — ' + clk(dur) + '.', 0);
+  }
+  $('ns_go').onclick = startSession;
+  $('start').onclick  = startSession;
+  const people = () => {
+    if (typeof Store === 'undefined' || !Store.ready()) return [];
+    return Store.roster().concat(Object.entries(Store.all()).filter(([k]) => k.startsWith('p:')).map(([, v]) => v));
+  };
+  if (typeof Store !== 'undefined') Store.resume().then(ok => { if (!ok) return;
+    $('ns_names').innerHTML = people().map(p => '<option value="' + String(p.name).replace(/"/g, '') + '">' +
+      [p.rank, p.regt].filter(Boolean).join(' · ') + '</option>').join(''); });
+  $('ns_name').addEventListener('change', () => {
+    const p = people().find(x => x.name === $('ns_name').value.trim().toUpperCase());
+    if (p) { if (!$('ns_regt').value) $('ns_regt').value = p.regt || ''; if (!$('ns_rank').value) $('ns_rank').value = p.rank || ''; }
+  });
   $('end').onclick    = () => Link.cmd('end');
   $('notes').oninput  = e => Link.cmd('notes', { v: e.target.value });
   /* How bright HIS picture looks on THIS screen only — the trainee's screen
