@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>MORCHA — Training Records</title>
+<style>
+:root{
+  --bg:#0b0f0e; --panel:#111816; --panel2:#151e1b; --line:#22302b; --line2:#2d3e38;
+  --text:#dfe9e4; --dim:#7b8e86; --faint:#4d5e57;
+  --grn:#4ade80; --amber:#fbbf24; --red:#f87171;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 var(--sans)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+
+/* ---- login ---- */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+#loginBox{width:min(380px,100%);background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:28px;display:flex;flex-direction:column;gap:12px}
+.brand{font-weight:800;letter-spacing:.14em;font-size:13px}
+.brand small{display:block;font-weight:500;letter-spacing:0;color:var(--dim);font-size:12px;margin-top:2px}
+#loginBox h1{margin:10px 0 4px;font-size:22px}
+#loginBox p{margin:0;color:var(--dim);font-size:13px}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--dim);font-weight:600;letter-spacing:.04em}
+label.f input{height:44px;border-radius:9px;border:1px solid var(--line2);background:var(--panel2);padding:0 12px;font-size:15px}
+label.f input:focus{outline:2px solid var(--amber);outline-offset:-1px}
+#go{height:46px;border-radius:9px;border:0;background:var(--amber);color:#111;font-weight:800;font-size:15px;margin-top:6px}
+#go:disabled{opacity:.6;cursor:wait}
+#err{color:var(--red);font-size:13px;min-height:18px}
+.lock{color:var(--faint);font-size:11.5px;margin-top:6px}
+
+/* ---- records ---- */
+#app{display:none}
+#top{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:12px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+#top h2{margin:0;font-size:17px}
+#top .sp{flex:1}
+.btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);font-weight:600;font-size:13px}
+.btn.pri{background:var(--amber);color:#111;border-color:var(--amber)}
+main{padding:16px 20px 60px;max-width:1280px;margin:0 auto}
+#stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.st{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.st b{display:block;font:700 22px var(--mono)}
+.st span{color:var(--dim);font-size:12px;font-weight:600;letter-spacing:.04em}
+#filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+#filters input,#filters select{height:36px;border-radius:8px;border:1px solid var(--line2);background:var(--panel2);padding:0 10px}
+#filters input[type=search]{flex:1;min-width:200px}
+#filters .pm{display:flex;align-items:center;gap:6px;color:var(--dim);font-size:12.5px}
+#filters .pm input{width:64px}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{width:100%;border-collapse:collapse;min-width:860px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{position:sticky;top:0;background:var(--panel2);font-size:11.5px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase}
+tr.grp td{background:#0f1513;color:var(--amber);font-weight:700;font-size:12.5px;letter-spacing:.04em}
+td.mono{font-family:var(--mono);font-size:13px}
+td input{height:32px;border-radius:7px;border:1px solid var(--line2);background:var(--panel2);padding:0 8px;width:100%}
+td input.mk{width:76px;text-align:right;font-family:var(--mono)}
+.res{font-weight:800;font-size:12px;letter-spacing:.06em}
+.res.p{color:var(--grn)} .res.f{color:var(--red)} .res.n{color:var(--faint);font-weight:600}
+#saved{color:var(--dim);font-size:12px}
+@media (max-width:700px){ main{padding:12px} #top{padding:10px 12px} }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <form id="loginBox" autocomplete="off">
+    <div class="brand">MORCHA<small>125 Bn BSF · Night observation simulator</small></div>
+    <h1>Training records</h1>
+    <p>Authorised staff only. Sign in to open the training history.</p>
+    <label class="f">Username<input id="u" autocomplete="username" spellcheck="false" required></label>
+    <label class="f">Password<input id="p" type="password" autocomplete="current-password" required></label>
+    <div id="err"></div>
+    <button id="go" type="submit">Sign in</button>
+    <div class="lock">The record list is encrypted (AES-256). It can only be opened with the correct username and password.</div>
+  </form>
+</div>
+
+<div id="app">
+  <div id="top">
+    <h2>Training History 2026</h2>
+    <span id="saved"></span>
+    <span class="sp"></span>
+    <button class="btn" id="imp">Import marks (CSV)</button>
+    <button class="btn pri" id="exp">Export to Excel</button>
+    <button class="btn" id="out">Sign out</button>
+    <input id="impFile" type="file" accept=".csv,text/csv" hidden>
+  </div>
+  <main>
+    <div id="stats"></div>
+    <div id="filters">
+      <input type="search" id="q" placeholder="Search name, regt no, rank…">
+      <select id="fd"><option value="">All training dates</option></select>
+      <select id="fc"><option value="">All coys</option></select>
+      <span class="pm">Pass mark <input id="pass" type="number" min="0" max="100" value="60"> / 100</span>
+    </div>
+    <div class="wrap"><table>
+      <thead><tr><th>#</th><th>Regt no</th><th>Rank</th><th>Name</th><th>Coy</th><th>Training date</th><th>Marks /100</th><th>Result</th><th>Remarks</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+  </main>
+</div>
+
+<script>
+/* Training records — the roster is shipped ENCRYPTED (data/roster.enc.json).
+   The key is derived from the username and password (PBKDF2-SHA256, 600k
+   rounds) and never leaves the browser. Marks entered here are stored on this
+   computer, encrypted with the same key, and can be exported to Excel. */
+(function () {
+  const $ = id => document.getElementById(id);
+  const te = new TextEncoder(), td = new TextDecoder();
+  const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const tob64 = u => btoa(String.fromCharCode(...u));
+  const STORE = 'morcha.marks.v1';
+  let key = null, people = [], marks = {}, idle = null;
+
+  async function deriveKey(user, pass, salt, iter) {
+    const base = await crypto.subtle.importKey('raw', te.encode(user.toLowerCase() + ':' + pass), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' },
+      base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+
+  $('loginBox').onsubmit = async e => {
+    e.preventDefault();
+    $('err').textContent = ''; $('go').disabled = true; $('go').textContent = 'Checking…';
+    try {
+      const enc = await (await fetch('data/roster.enc.json?v=' + Date.now(), { cache: 'no-store' })).json();
+      const k = await deriveKey($('u').value.trim(), $('p').value, b64(enc.salt), enc.iter);
+      const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(enc.iv) }, k, b64(enc.ct));
+      key = k; people = JSON.parse(td.decode(pt));
+      $('p').value = '';
+      await loadMarks();
+      start();
+    } catch (err) {
+      $('err').textContent = 'Wrong username or password.';
+    } finally { $('go').disabled = false; $('go').textContent = 'Sign in'; }
+  };
+
+  /* ---- marks: encrypted on this computer ---- */
+  async function loadMarks() {
+    marks = {};
+    try {
+      const s = JSON.parse(localStorage.getItem(STORE) || 'null');
+      if (s) marks = JSON.parse(td.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(s.iv) }, key, b64(s.ct))));
+    } catch (e) { marks = {}; }
+  }
+  let saveT = null;
+  function saveMarks() {
+    clearTimeout(saveT);
+    saveT = setTimeout(async () => {
+      try {
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, te.encode(JSON.stringify(marks))));
+        localStorage.setItem(STORE, JSON.stringify({ iv: tob64(iv), ct: tob64(ct) }));
+        $('saved').textContent = 'Saved on this computer · ' + new Date().toLocaleTimeString();
+      } catch (e) { $('saved').textContent = 'Could not save on this browser — use Export to Excel.'; }
+    }, 300);
+  }
+
+  /* ---- view ---- */
+  const fmt = d => { const [y, m, dd] = d.split('-'); return dd + '.' + m + '.' + y; };
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const passMark = () => +$('pass').value || 0;
+  const result = m => m === '' || m == null || isNaN(+m) ? null : (+m >= passMark() ? 'PASS' : 'FAIL');
+
+  function start() {
+    $('login').style.display = 'none'; $('app').style.display = 'block';
+    const dates = [...new Set(people.map(p => p.date))].sort();
+    $('fd').innerHTML = '<option value="">All training dates</option>' + dates.map(d => '<option value="' + d + '">' + fmt(d) + '</option>').join('');
+    const coys = [...new Set(people.map(p => p.coy).filter(Boolean))].sort();
+    $('fc').innerHTML = '<option value="">All coys</option>' + coys.map(c => '<option>' + esc(c) + '</option>').join('');
+    const pm = localStorage.getItem('morcha.passmark'); if (pm) $('pass').value = pm;
+    render(); armIdle();
+  }
+
+  function filtered() {
+    const q = $('q').value.trim().toLowerCase(), d = $('fd').value, c = $('fc').value;
+    return people.filter(p => (!d || p.date === d) && (!c || p.coy === c) &&
+      (!q || (p.name + ' ' + p.regt + ' ' + p.rank).toLowerCase().includes(q)));
+  }
+
+  function stats() {
+    const withM = people.filter(p => marks[p.regt] && marks[p.regt].m !== '' && marks[p.regt].m != null);
+    const pass = withM.filter(p => result(marks[p.regt].m) === 'PASS').length;
+    const avg = withM.length ? (withM.reduce((a, p) => a + (+marks[p.regt].m), 0) / withM.length) : null;
+    $('stats').innerHTML = [
+      ['Trained in 2026', people.length],
+      ['Marks entered', withM.length + ' / ' + people.length],
+      ['Passed', withM.length ? pass + ' (' + Math.round(pass * 100 / withM.length) + '%)' : '—'],
+      ['Failed', withM.length ? (withM.length - pass) : '—'],
+      ['Average marks', avg === null ? '—' : avg.toFixed(1)]
+    ].map(([l, v]) => '<div class="st"><span>' + l + '</span><b>' + v + '</b></div>').join('');
+  }
+
+  function render() {
+    const list = filtered(); let last = null, html = '', n = 0;
+    for (const p of list) {
+      if (p.date !== last) {
+        last = p.date;
+        const cnt = list.filter(x => x.date === p.date).length;
+        html += '<tr class="grp"><td colspan="9">Returned from leave and trained · ' + fmt(p.date) + ' · ' + cnt + ' personnel</td></tr>';
+      }
+      const mk = marks[p.regt] || {}, r = result(mk.m);
+      html += '<tr data-r="' + esc(p.regt) + '"><td>' + (++n) + '</td><td class="mono">' + esc(p.regt) + '</td><td>' + esc(p.rank) +
+        '</td><td><b>' + esc(p.name) + '</b></td><td>' + esc(p.coy) + '</td><td class="mono">' + fmt(p.date) +
+        '</td><td><input class="mk" type="number" min="0" max="100" step="1" value="' + esc(mk.m == null ? '' : mk.m) + '" placeholder="—"></td>' +
+        '<td class="res ' + (r === 'PASS' ? 'p' : r === 'FAIL' ? 'f' : 'n') + '">' + (r || 'Not entered') + '</td>' +
+        '<td><input class="rm" value="' + esc(mk.r || p.remarks || '') + '" placeholder="Remarks"></td></tr>';
+    }
+    $('rows').innerHTML = html || '<tr><td colspan="9" style="color:var(--dim)">No records match.</td></tr>';
+    stats();
+  }
+
+  $('rows').addEventListener('input', e => {
+    const tr = e.target.closest('tr[data-r]'); if (!tr) return;
+    const id = tr.getAttribute('data-r'); marks[id] = marks[id] || {};
+    if (e.target.classList.contains('mk')) {
+      let v = e.target.value; if (v !== '') v = Math.max(0, Math.min(100, +v));
+      marks[id].m = v;
+      const r = result(v), c = tr.querySelector('.res');
+      c.className = 'res ' + (r === 'PASS' ? 'p' : r === 'FAIL' ? 'f' : 'n'); c.textContent = r || 'Not entered';
+      stats();
+    } else if (e.target.classList.contains('rm')) marks[id].r = e.target.value;
+    saveMarks();
+  });
+  ['q', 'fd', 'fc'].forEach(id => $(id).addEventListener('input', render));
+  $('pass').addEventListener('input', () => { localStorage.setItem('morcha.passmark', $('pass').value); render(); });
+
+  /* ---- Excel ---- */
+  const csvCell = v => { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  $('exp').onclick = () => {
+    const head = ['SL', 'REGT NO', 'RANK', 'NAME', 'COY', 'TRAINING DATE', 'MARKS', 'RESULT', 'REMARKS'];
+    const lines = [head.join(',')];
+    filtered().forEach((p, i) => { const mk = marks[p.regt] || {};
+      lines.push([i + 1, '\t' + p.regt, p.rank, p.name, p.coy, fmt(p.date), mk.m == null ? '' : mk.m,
+                  result(mk.m) || '', mk.r || p.remarks || ''].map(csvCell).join(',')); });
+    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'MORCHA_Training_History_2026.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  /* Import: any CSV with a REGT NO column and a MARKS column (and optional REMARKS). */
+  $('imp').onclick = () => $('impFile').click();
+  $('impFile').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    const rows = (await f.text()).replace(/^﻿/, '').split(/\r?\n/).filter(Boolean).map(l => {
+      const out = []; let cur = '', q = false;
+      for (let i = 0; i < l.length; i++) { const ch = l[i];
+        if (q) { if (ch === '"' && l[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+        else if (ch === '"') q = true; else if (ch === ',') { out.push(cur); cur = ''; } else cur += ch; }
+      out.push(cur); return out.map(s => s.trim());
+    });
+    const h = rows[0].map(s => s.toUpperCase());
+    const ir = h.findIndex(s => s.includes('REGT')), im = h.findIndex(s => s.includes('MARK')), ik = h.findIndex(s => s.includes('REMARK'));
+    if (ir < 0 || im < 0) { alert('The file needs a "REGT NO" column and a "MARKS" column.'); return; }
+    let n = 0;
+    for (const r of rows.slice(1)) {
+      const id = (r[ir] || '').replace(/\D/g, ''); const p = people.find(x => x.regt.replace(/\D/g, '') === id);
+      if (!p || r[im] === '' || isNaN(+r[im])) continue;
+      marks[p.regt] = marks[p.regt] || {}; marks[p.regt].m = Math.max(0, Math.min(100, +r[im]));
+      if (ik >= 0 && r[ik]) marks[p.regt].r = r[ik]; n++;
+    }
+    saveMarks(); render(); alert('Imported marks for ' + n + ' personnel.');
+    e.target.value = '';
+  };
+
+  /* ---- session: sign out, and automatically after 15 minutes idle ---- */
+  function signOut() { key = null; people = []; marks = {}; $('rows').innerHTML = ''; $('stats').innerHTML = '';
+    $('app').style.display = 'none'; $('login').style.display = 'flex'; $('u').focus(); }
+  $('out').onclick = signOut;
+  function armIdle() { clearTimeout(idle); idle = setTimeout(signOut, 15 * 60 * 1000); }
+  ['pointerdown', 'keydown', 'scroll'].forEach(ev => addEventListener(ev, () => { if (key) armIdle(); }, { passive: true }));
+})();
+</script>
+</body>
+</html>
