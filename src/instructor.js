@@ -128,8 +128,7 @@
   }
   (function tick(){ paintOverlay(); requestAnimationFrame(tick); })();   // smooth, every display frame
 
-  $('popTrainee').onclick = () => window.open('trainee.html' + (Link.code() ? '?code=' + Link.code() : ''), 'morchaTrainee',
-    'width=1440,height=810,menubar=no,toolbar=no,location=no');
+  $('popTrainee').onclick = () => window.open('trainee.html' + (Link.code() ? '?code=' + Link.code() : ''), 'morchaTrainee');
   Link.on('claim', c => {
     /* Act on the report the instant it lands — don't wait for the next state. */
     if (!S) S = {};
